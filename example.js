@@ -3,21 +3,17 @@ const ecies = require('./ecies')
 const eciesOpts = require('./ecies/options').options
 const assert = require('assert').strict;
 
-const plainText = Buffer.from('hello world');
+const plainTextMessage = Buffer.from('hello world');
+
 var alice = crypto.createECDH(eciesOpts.curveName)
+var alicePubKey = alice.generateKeys()
 var bob = crypto.createECDH(eciesOpts.curveName)
-alicePubKey = alice.generateKeys()
-bobPubKey = bob.generateKeys()
-console.log(Object.prototype.toString.call(plainText))
-
-encryptedEnvelope = ecies.encrypt(alice.getPrivateKey(), bobPubKey, plainText);
-
-console.log(encryptedEnvelope)
-console.log(encryptedEnvelope.kdfIV)
+var bobPubKey = bob.generateKeys()
 
 
-// const encryptedText = ecies.encrypt(alice.getPrivateKey(), bobPubKey, plainText);
-// const decryptedText = ecies.decrypt(bob.getPrivateKey(), encryptedText;
-// assert(plainText.toString('hex') == decryptedText.toString('hex'));
-// console.log("Plain text message: |" + plainText + "|")
-// console.log("Decrypted message: |" + decryptedText + "|")
+var encEnvelope = ecies.encrypt(alice.getPrivateKey(), bobPubKey, plainTextMessage)
+var decEnvelope = ecies.decrypt(bob.getPrivateKey(), encEnvelope)
+assert(Buffer.compare(plainTextMessage, decEnvelope.message) === 0, "MESSAGES ARE NOT EQUAL")
+assert(Buffer.compare(decEnvelope.from, alicePubKey) === 0, "PUBLIC KEYS ARE NOT EQUAL")
+
+console.log("Decrypted message is: " + decEnvelope.message.toString())

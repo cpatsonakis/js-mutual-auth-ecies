@@ -3,7 +3,7 @@ Totally not an implementation that complies to the one illustrated in: https://e
 We have different requirements here bro, so we have to deal with the crypto API of this shit JS library that does not allow us
 to do proper crypto operations ON THE SAME FUCKING CURVE MIND YOU. YES, YES INDEED, WE CANNOT USE AN EC KEY PAIR TO DO ECDH
 ON THE SAME FUCKING CURVE MIND YOU. NO, THIS LIBRARY JUST REFUSES TO DO SO. Great, just great I tell ya... I mean, really, who
-gives a shit about point operation on elliptic curves. Like, I could do some EC co-factor DH, but no no, no sir, this library
+gives a shit about point operations on elliptic curves. Like, I could do some EC co-factor DH, but no no, no sir, this library
 just doesn't want me to do it... It begs the existential question right now, why did I learn all this crypto math? So that I can
 have this stupid library deny me? I really feel that I am the target of some "library privilege" here, ya know, in the same sense
 of "white privilege" (LUL).
@@ -34,10 +34,9 @@ fucking joke... NO TYPE CHECKING! "=" ARE NOT ENOUGH WE NEED 3 of those for equa
 digress... Since I am a very big nerd, and since the people I am dealing with are full-fledged retards, I did, on the one hand, several
 simplications and, on the other hand, a couple of modifications to increase security. Like, really dude, who the fuck chooses an
 encryption key with 16 bytes of entropy. QUANTUM COMPUTERS AND THE DREAD OF QUANTUM SUPREMACY IS UPON US DEAR LORD!!! PANIC!! PANIC!!!
-Just make it 32 bytes and go and drink your coffee in a care-free fashion. It seems to me that I am not being serious, although I said
-I would be serious. Oh well, it is what it is...
+Hopefully the sarcasm in the previous sentence is evident...
 */
-'use strict';
+'use strict'; // yes, yes... JS is a very "strict" language...
 
 const crypto = require('crypto');
 const assert = require('assert');
@@ -45,7 +44,7 @@ const options = require('./options').options
 
 // Symmetric decryption based on the input key. This function assumes
 // that we are using a symmetric cipher that does not require an IV
-function symmetricEncrypt(cypherName, key, plaintext) { 
+function symmetricEncrypt(cypherName, key, plaintext) {
   let cipher = crypto.createCipheriv(cypherName, key, null);
   const firstChunk = cipher.update(plaintext);
   const secondChunk = cipher.final();
@@ -55,7 +54,7 @@ function symmetricEncrypt(cypherName, key, plaintext) {
 // Symmetric decryption based on the input key. This function assumes
 // that we are using a symmetric cipher that does not require an IV
 function symmetricDecrypt(cypherName, key, ciphertext) {
-  let cipher = crypto.createCipheriv(cypherName, key, null);
+  let cipher = crypto.createDecipheriv(cypherName, key, null);
   const firstChunk = cipher.update(ciphertext);
   const secondChunk = cipher.final();
   return Buffer.concat([firstChunk, secondChunk]);
@@ -83,171 +82,126 @@ exports.encrypt = function (senderPrivateKey, receiverPublicKey, message) {
   // on the same curve and I have to do this bullshit transformation in order to
   // protect the public key of the sender. Top notch job that I can't do EC co-factor
   // DH....
-  var ephemeralSenderECDH = crypto.createECDH(options.curvename)
-  ephemeralSenderECDH.generateKeys()
+  // Ok, so now we have to produce an ECDH shared secret by using the private key
+  // of the sender so that we can use it to "authenticate" the message sender to
+  // the receiver.
+
+  var senderECDH = crypto.createECDH(options.curveName)
+  senderECDH.setPrivateKey(senderPrivateKey)
+
+  // Shared secret that the receiver can produce by knowing the public-key of
+  // the sender and by using his own private key
+  const senderSharedSecret = senderECDH.computeSecret(receiverPublicKey)
+  // Compute a random salt for the MAC to guarantee uniqueness of the authenticator
+  const salt = crypto.randomBytes(options.kdfLength)
+
+  var messageEncoded = message.toString('base64url')
+  var messageEncodedBuffer = Buffer.from(messageEncoded)
+
+  // Compute the authenticator
+  const authTag = macMessage(options.macName,
+    senderSharedSecret,
+    Buffer.concat([
+      salt,
+      messageEncodedBuffer],
+      salt.length + messageEncodedBuffer.length))
+
+  // Wrap them all in an envelope. We don't need to encrypt the message
+  // here because we are going to encrypt the entire envelope with an
+  // ephemeral key right after
+  var senderAuthMsgEnvelope = {
+    from: senderECDH.getPublicKey().toString('base64url'),
+    salt: salt.toString('base64url'),
+    msg: messageEncoded,
+    tag: authTag.toString('base64url')
+  }
+
+  const senderAuthMsgEnvelopeSerialized = JSON.stringify(senderAuthMsgEnvelope)
+
+  // Ok, now we are going to compute the ephemeral DH secret based on the public key of the
+  // receiver
+  var ephemeralSenderECDH = crypto.createECDH(options.curveName)
+  const R = ephemeralSenderECDH.generateKeys()
 
   // Ephemeral Shared Secret
   const ephemeralSharedSecret = ephemeralSenderECDH.computeSecret(receiverPublicKey);
 
   // Derive the ephemeral encryption key (ephEncKey) and the ephemeral MAC key (ephMACKey)
   // ephEncKey || epcMACKey = KDF(ephemeralSharedSecret)
-  const ephemeralHash = crypto.createHash(options.kdfName).update(ephemeralSharedSecret).digest()
+  const ephemeralKDF = crypto.createHash(options.kdfName).update(ephemeralSharedSecret).digest()
 
   // Yes yes... we fucking assume that the length of the hash function is divisible by 2
   // Try and find a hash function that doesn't have a byte output with that property you retard...
-  // ephEncKey
-  const ephemeralEncKey = ephemeralHash.slice(0, options.kdfLength / 2);
-  // epcMACKey
-  const ephemeralMACKey = ephemeralHash.slice(options.kdfLength / 2);
+  const ephemeralEncKey = ephemeralKDF.slice(0, options.kdfLength / 2);
+  const ephemeralMACKey = ephemeralKDF.slice(options.kdfLength / 2);
 
-  // Now we need to compute the encryption of the ephemeral key
-  // and the tag of the ephemeral key for message integrity
-  const ephemeralKeyCiphertext = symmetricEncrypt(options.symmetricCypherName, ephemeralEncKey, ephemeralEncKey);
-  const ephemeralKeyMAC = macMessage(options.macName, ephemeralMACKey, ephemeralKeyCiphertext);
-  /*
-     Ok, so now we have an object that pretty much looks like this:
-     {
-       "to" : <ECDH key of receiver in base64>,
-       "key_enc": <...>,
-       "key_tag": <...>,
-       "ephR": <...>,
+  const serializedEnvelopeCiphertext = symmetricEncrypt(options.symmetricCypherName, ephemeralEncKey, senderAuthMsgEnvelopeSerialized);
+  const serializedEnvelopeTag = macMessage(options.macName, ephemeralMACKey, serializedEnvelopeCiphertext);
 
-     }
-  */
-  const internalKeyIV = crypto.randomBytes(options.kdfLength / 2)
-
-
-
-
-
-
-  // Now we start fixing the "internal" or "nested" ECIES shit...
-  var senderECDH = crypto.createECDH(options.curveName)
-  senderECDH.setPrivateKey(senderPrivateKey)
-
-  senderSharedSecret = senderECDH.computeSecret(senderECDH.getPublicKey())
-  
-  
-
-
-
-  const cipherText = symmetricEncrypt(options.symmetricCypherName, options.iv, encryptionKey, envelopeEncoded);
-
-
-
-  // S
-  const sharedSecret = senderECDH.computeSecret(receiverPublicKey);
-
-
-  var envelope = {
-    from: senderECDH.getPublicKey().toString('base64'),
-    to: receiverPublicKey.toString('base64'),
-    payload: message.toString('base64')
-  };
-  var envelopeEncoded = JSON.stringify(envelope).toString('base64')
-
-  var kdfIV = crypto.randomBytes(sharedSecret.length)
-
-  // uses KDF to derive a symmetric encryption and a MAC keys:
-  // Ke || Km = KDF(S || kdfIV)
-  const hash = hashMessage(
-    options.hashName,
-    Buffer.concat(
-      [sharedSecret, kdfIV],
-      sharedSecret.length + kdfIV.length
-    )
-  );
-  // Ke
-  const encryptionKey = hash.slice(0, hash.length / 2);
-  // Km
-  const macKey = hash.slice(hash.length / 2);
-
-  var macIV = crypto.randomBytes(sharedSecret.length)
-
-  // encrypts the message:
-  // c = E(Ke; m);
-  const cipherText = symmetricEncrypt(options.symmetricCypherName, options.iv, encryptionKey, envelopeEncoded);
-
-  // computes the tag of encrypted message: 
-  // d = MAC(Km; c || macIV)
-  const tag = macMessage(options.macName, macKey, Buffer.concat([cipherText, macIV], cipherText.length + macIV.length));
   return {
-    ciphertext: cipherText.toString('base64'),
-    kdfIV: kdfIV.toString('base64'),
-    macIV: macIV.toString('base64'),
-    tag: tag.toString('base64')
-  };
+    to: receiverPublicKey.toString('base64url'),
+    r: R.toString('base64url'),
+    ct: serializedEnvelopeCiphertext.toString('base64url'),
+    tag: serializedEnvelopeTag.toString('base64url')
+  }
 };
 
-exports.decrypt = function (receiverPrivateKey, envelope) {
-  const receiverECDH = crypto.createECDH(options.curveName);
+exports.decrypt = function (receiverPrivateKey, encEnvelope) {
+  // Some envelope format checks are warranted first...
+  assert(('to' in encEnvelope), "ecies::decrypt(): 'to' property not found on input encrypted envelope")
+  assert(('r' in encEnvelope), "ecies::decrypt(): 'r' property not found on input encrypted envelope")
+  assert(('ct' in encEnvelope), "ecies::decrypt(): 'ct' property not found on input encrypted envelope")
+  assert(('tag' in encEnvelope), "ecies::decrypt(): 'tag' property not found on input encrypted envelope")
+
+  const ephemeralReceiverECDH = crypto.createECDH(options.curveName);
+  ephemeralReceiverECDH.setPrivateKey(receiverPrivateKey)
+
+  assert(equalConstTime(ephemeralReceiverECDH.getPublicKey().toString('base64url'), encEnvelope.to),
+    "ecies::decrypt(): Public keys do not match")
+
+  // Ephemeral Shared Secret
+  const ephemeralSharedSecret = ephemeralReceiverECDH.computeSecret(Buffer.from(encEnvelope.r, 'base64url'));
+
+  // Derive the ephemeral encryption key (ephEncKey) and the ephemeral MAC key (ephMACKey)
+  // ephEncKey || epcMACKey = KDF(ephemeralSharedSecret)
+  const ephemeralKDF = crypto.createHash(options.kdfName).update(ephemeralSharedSecret).digest()
+
+  // Yes yes... we fucking assume that the length of the hash function is divisible by 2
+  // Try and find a hash function that doesn't have a byte output with that property you retard...
+  const ephemeralEncKey = ephemeralKDF.slice(0, options.kdfLength / 2);
+  const ephemeralMACKey = ephemeralKDF.slice(options.kdfLength / 2);
+
+  const ciphertextBuffer = Buffer.from(encEnvelope.ct, 'base64url')
+
+  const serializedEnvelopeTag = macMessage(options.macName, ephemeralMACKey, ciphertextBuffer);
+  assert(equalConstTime(serializedEnvelopeTag.toString('base64url'), encEnvelope.tag), "ecies::decrypt(): Bad MAC")
+
+  var senderAuthMsgEnvelopeSerialized = symmetricDecrypt(options.symmetricCypherName, ephemeralEncKey, ciphertextBuffer)
+  var senderAuthMsgEnvelope = JSON.parse(senderAuthMsgEnvelopeSerialized.toString())
+
+  assert(('from' in senderAuthMsgEnvelope), "ecies::decrypt(): 'from' property not found on sender's authenticated envelope")
+  assert(('salt' in senderAuthMsgEnvelope), "ecies::decrypt(): 'salt' property not found on sender's authenticated envelope")
+  assert(('msg' in senderAuthMsgEnvelope), "ecies::decrypt(): 'msg' property not found on sender's authenticated envelope")
+  assert(('tag' in senderAuthMsgEnvelope), "ecies::decrypt(): 'tag' property not found on sender's authenticated envelope")
+
+  var senderPublicKey = Buffer.from(senderAuthMsgEnvelope.from, 'base64url')
+  var salt = Buffer.from(senderAuthMsgEnvelope.salt, 'base64url')
+  var messageEncodedBuffer = Buffer.from(senderAuthMsgEnvelope.msg)
+
+  var receiverECDH = crypto.createECDH(options.curveName)
   receiverECDH.setPrivateKey(receiverPrivateKey)
+  var receiverSharedSecret = receiverECDH.computeSecret(senderPublicKey)
 
-  assert(('ciphertext' in envelope), "ecies::decrypt(): 'ciphertext' property not found on input envelope")
-  assert(('kdfIV' in envelope), "ecies::decrypt(): 'kdfIV' property not found on input envelope")
-  assert(('macIV' in envelope), "ecies::decrypt(): 'macIV' property not found on input envelope")
-  assert(('tag' in envelope), "ecies::decrypt(): 'tag' property not found on input envelope")
-
-  assert(Buffer.from(envelope.ciphertext, 'base64').toString('base64') === envelope.ciphertext,
-    "ecies::decrypt(): 'ciphertext' is not in base64 encoding")
-  assert(Buffer.from(envelope.kdfIV, 'base64').toString('base64') === envelope.kdfIV,
-    "ecies::decrypt(): 'kdfIV' is not in base64 encoding")
-  assert(Buffer.from(envelope.macIV, 'base64').toString('base64') === envelope.macIV,
-    "ecies::decrypt(): 'macIV' is not in base64 encoding")
-  assert(Buffer.from(envelope.tag, 'base64').toString('base64') === envelope.tag,
-    "ecies::decrypt(): 'tag' is not in base64 encoding")
-
-  // S
-  const sharedSecret = receiverECDH.computeSecret(senderPublicKey);
-
-  // uses KDF to derive a symmetric encryption and a MAC keys:
-  // Ke || Km = KDF(S || kdfIV)
-  const hash = hashMessage(
-    options.hashName,
-    Buffer.concat(
-      [sharedSecret, kdfIV],
-      sharedSecret.length + kdfIV.length
-    )
-  );
-
-  const publicKeyLength = receiverECDH.getPublicKey(null, options.keyFormat).length;
-  // R
-  const R = message.slice(0, publicKeyLength);
-  // c
-  const cipherText = message.slice(publicKeyLength, message.length - options.macLength);
-  // d
-  const messageTag = message.slice(message.length - options.macLength);
-
-
-
-  // // derives keys the same way as Alice did:
-  // // Ke || Km = KDF(S || S1)
-  // const hash = hashMessage(
-  //   options.hashName,
-  //   Buffer.concat(
-  //     [sharedSecret, options.s1],
-  //     sharedSecret.length + options.s1.length
-  //   )
-  // );
-  // Ke
-  const encryptionKey = hash.slice(0, hash.length / 2);
-  // Km
-  const macKey = hash.slice(hash.length / 2);
-
-  // uses MAC to check the tag
-  const keyTag = macMessage(
-    options.macName,
-    macKey,
-    Buffer.concat(
-      [cipherText, options.s2],
-      cipherText.length + options.s2.length
-    )
-  );
-
-  // outputs failed if d != MAC(Km; c || S2);
-  assert(equalConstTime(messageTag, keyTag), "Bad MAC");
-
-  // uses symmetric encryption scheme to decrypt the message
-  // m = E-1(Ke; c)
-  return symmetricDecrypt(options.symmetricCypherName, options.iv, encryptionKey, cipherText);
+  // Compute the authenticator
+  const authTag = macMessage(options.macName,
+    receiverSharedSecret,
+    Buffer.concat([
+      salt,
+      messageEncodedBuffer],
+      salt.length + messageEncodedBuffer.length))
+  assert(equalConstTime(authTag.toString('base64url'), senderAuthMsgEnvelope.tag), "ecies::decrypt(): Bad authenticator")
+  return {
+    from: senderPublicKey,
+    message: Buffer.from(senderAuthMsgEnvelope.msg, 'base64url')
+  };
 }
