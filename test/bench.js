@@ -4,7 +4,7 @@ const eciesOpts = require('../ecies/options').options
 const assert = require('assert').strict;
 
 const NS_PER_SEC = 1e9;
-const msgNo = 5000
+const msgNo = 500
 const msgSize = 32
 
 // Generate an array of random messages
@@ -41,7 +41,7 @@ totalHRTime = process.hrtime(startTime);
 var decTimeSecs = (totalHRTime[0]* NS_PER_SEC + totalHRTime[1]) / NS_PER_SEC
 
 console.log("Benchmark Inputs: " + msgNo + " messages, message_size = " + msgSize + " bytes")
-console.log("Encryption benchmark results: total_time = " + encTimeSecs + " (secs), throughput = " + (msgNo/encTimeSecs) + " (ops/sec)")
-console.log("Decryption benchmark results: total_time = " + decTimeSecs + " (secs), throughput = " + (msgNo/decTimeSecs) + " (ops/sec)")
+console.log("Encryption benchmark results: total_time = " + encTimeSecs + " (secs), throughput = " + (msgNo/encTimeSecs) + " (ops/sec), Avg_Op_Time = " + (encTimeSecs/msgNo) + " (secs)")
+console.log("Decryption benchmark results: total_time = " + decTimeSecs + " (secs), throughput = " + (msgNo/decTimeSecs) + " (ops/sec), Avg_Op_Time = " + (decTimeSecs/msgNo) + " (secs)")
 
 
