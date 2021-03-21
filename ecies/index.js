@@ -95,16 +95,12 @@ exports.encrypt = function (senderPrivateKey, receiverPublicKey, message) {
 
   var messageEncoded = message.toString('base64url')
 
-  // Compute the authenticator
-  const authTag = macMessage(options.macName, senderSharedSecret, messageEncoded)
-
   // Wrap them all in an envelope. We don't need to encrypt the message
   // here because we are going to encrypt the entire envelope with an
   // ephemeral key right after
   var senderAuthMsgEnvelope = {
     from: senderECDH.getPublicKey().toString('base64url'),
-    msg: messageEncoded,
-    tag: authTag.toString('base64url')
+    msg: messageEncoded
   }
 
   const senderAuthMsgEnvelopeSerialized = JSON.stringify(senderAuthMsgEnvelope)
@@ -127,7 +123,10 @@ exports.encrypt = function (senderPrivateKey, receiverPublicKey, message) {
   const ephemeralMACKey = ephemeralKDF.slice(options.kdfLength / 2);
 
   const serializedEnvelopeCiphertext = symmetricEncrypt(options.symmetricCypherName, ephemeralEncKey, senderAuthMsgEnvelopeSerialized);
-  const serializedEnvelopeTag = macMessage(options.macName, ephemeralMACKey, serializedEnvelopeCiphertext);
+  const serializedEnvelopeTag = macMessage(options.macName, ephemeralMACKey,
+    Buffer.concat(
+      [serializedEnvelopeCiphertext, senderSharedSecret],
+      serializedEnvelopeCiphertext.length + senderSharedSecret.length));
 
   return {
     to: receiverPublicKey.toString('base64url'),
@@ -164,25 +163,24 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
 
   const ciphertextBuffer = Buffer.from(encEnvelope.ct, 'base64url')
 
-  const serializedEnvelopeTag = macMessage(options.macName, ephemeralMACKey, ciphertextBuffer);
-  assert(equalConstTime(serializedEnvelopeTag.toString('base64url'), encEnvelope.tag), "ecies::decrypt(): Bad MAC")
-
   var senderAuthMsgEnvelopeSerialized = symmetricDecrypt(options.symmetricCypherName, ephemeralEncKey, ciphertextBuffer)
   var senderAuthMsgEnvelope = JSON.parse(senderAuthMsgEnvelopeSerialized.toString())
 
   assert(('from' in senderAuthMsgEnvelope), "ecies::decrypt(): 'from' property not found on sender's authenticated envelope")
   assert(('msg' in senderAuthMsgEnvelope), "ecies::decrypt(): 'msg' property not found on sender's authenticated envelope")
-  assert(('tag' in senderAuthMsgEnvelope), "ecies::decrypt(): 'tag' property not found on sender's authenticated envelope")
 
   var senderPublicKey = Buffer.from(senderAuthMsgEnvelope.from, 'base64url')
-
   var receiverECDH = crypto.createECDH(options.curveName)
   receiverECDH.setPrivateKey(receiverPrivateKey)
   var receiverSharedSecret = receiverECDH.computeSecret(senderPublicKey)
 
-  // Compute the authenticator
-  const authTag = macMessage(options.macName, receiverSharedSecret, senderAuthMsgEnvelope.msg)
-  assert(equalConstTime(authTag.toString('base64url'), senderAuthMsgEnvelope.tag), "ecies::decrypt(): Bad authenticator")
+
+  const serializedEnvelopeTag = macMessage(options.macName, ephemeralMACKey,
+    Buffer.concat(
+      [ciphertextBuffer, receiverSharedSecret],
+      ciphertextBuffer.length + receiverSharedSecret.length));
+  assert(equalConstTime(serializedEnvelopeTag.toString('base64url'), encEnvelope.tag), "ecies::decrypt(): Bad MAC")
+
   return {
     from: senderPublicKey,
     message: Buffer.from(senderAuthMsgEnvelope.msg, 'base64url')

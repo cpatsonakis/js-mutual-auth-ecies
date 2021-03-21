@@ -132,9 +132,9 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
   const receiverVerify = crypto.createVerify(options.kdfName)
   receiverVerify.update(serializedEnvelopeTag)
   receiverVerify.end()
-  assert(receiverVerify.verify(senderAuthMsgEnvelope.from, signatureBuffer) === true, "eciesds::decrypt() Bad signature")
+  assert(receiverVerify.verify(senderAuthMsgEnvelope.from, signatureBuffer) === true, "eciesds::decrypt(): Bad signature")
   return {
-      from: senderAuthMsgEnvelope.from,
-      message: Buffer.from(senderAuthMsgEnvelope.msg, 'base64url')
+    from: senderAuthMsgEnvelope.from,
+    message: Buffer.from(senderAuthMsgEnvelope.msg, 'base64url')
   }
 }
