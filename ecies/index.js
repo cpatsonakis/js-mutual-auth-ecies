@@ -92,26 +92,17 @@ exports.encrypt = function (senderPrivateKey, receiverPublicKey, message) {
   // Shared secret that the receiver can produce by knowing the public-key of
   // the sender and by using his own private key
   const senderSharedSecret = senderECDH.computeSecret(receiverPublicKey)
-  // Compute a random salt for the MAC to guarantee uniqueness of the authenticator
-  const salt = crypto.randomBytes(options.kdfLength)
 
   var messageEncoded = message.toString('base64url')
-  var messageEncodedBuffer = Buffer.from(messageEncoded)
 
   // Compute the authenticator
-  const authTag = macMessage(options.macName,
-    senderSharedSecret,
-    Buffer.concat([
-      salt,
-      messageEncodedBuffer],
-      salt.length + messageEncodedBuffer.length))
+  const authTag = macMessage(options.macName, senderSharedSecret, messageEncoded)
 
   // Wrap them all in an envelope. We don't need to encrypt the message
   // here because we are going to encrypt the entire envelope with an
   // ephemeral key right after
   var senderAuthMsgEnvelope = {
     from: senderECDH.getPublicKey().toString('base64url'),
-    salt: salt.toString('base64url'),
     msg: messageEncoded,
     tag: authTag.toString('base64url')
   }
@@ -180,25 +171,17 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
   var senderAuthMsgEnvelope = JSON.parse(senderAuthMsgEnvelopeSerialized.toString())
 
   assert(('from' in senderAuthMsgEnvelope), "ecies::decrypt(): 'from' property not found on sender's authenticated envelope")
-  assert(('salt' in senderAuthMsgEnvelope), "ecies::decrypt(): 'salt' property not found on sender's authenticated envelope")
   assert(('msg' in senderAuthMsgEnvelope), "ecies::decrypt(): 'msg' property not found on sender's authenticated envelope")
   assert(('tag' in senderAuthMsgEnvelope), "ecies::decrypt(): 'tag' property not found on sender's authenticated envelope")
 
   var senderPublicKey = Buffer.from(senderAuthMsgEnvelope.from, 'base64url')
-  var salt = Buffer.from(senderAuthMsgEnvelope.salt, 'base64url')
-  var messageEncodedBuffer = Buffer.from(senderAuthMsgEnvelope.msg)
 
   var receiverECDH = crypto.createECDH(options.curveName)
   receiverECDH.setPrivateKey(receiverPrivateKey)
   var receiverSharedSecret = receiverECDH.computeSecret(senderPublicKey)
 
   // Compute the authenticator
-  const authTag = macMessage(options.macName,
-    receiverSharedSecret,
-    Buffer.concat([
-      salt,
-      messageEncodedBuffer],
-      salt.length + messageEncodedBuffer.length))
+  const authTag = macMessage(options.macName, receiverSharedSecret, senderAuthMsgEnvelope.msg)
   assert(equalConstTime(authTag.toString('base64url'), senderAuthMsgEnvelope.tag), "ecies::decrypt(): Bad authenticator")
   return {
     from: senderPublicKey,

@@ -3,7 +3,7 @@ const ecies = require('../ecies')
 const options = require('../options')
 
 const NS_PER_SEC = 1e9;
-const msgNo = 5000
+const msgNo = 500
 const msgSize = 32
 
 // Generate an array of random messages
