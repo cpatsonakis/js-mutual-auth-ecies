@@ -40,7 +40,7 @@ Hopefully the sarcasm in the previous sentence is evident...
 
 const crypto = require('crypto');
 const assert = require('assert');
-const options = require('./options').options
+const options = require('../options')
 
 // Symmetric decryption based on the input key. This function assumes
 // that we are using a symmetric cipher that does not require an IV

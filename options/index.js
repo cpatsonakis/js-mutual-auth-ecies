@@ -1,7 +1,7 @@
 'use strict'
 
 // default options 
-exports.options = {
+module.exports = {
     kdfName: 'sha3-256',
     kdfLength: 32,
     macName: 'sha3-256',

@@ -1,10 +1,10 @@
 const crypto = require('crypto')
 const ecies = require('../ecies')
-const eciesOpts = require('../ecies/options').options
+const options = require('../options')
 const assert = require('assert').strict;
 
 const NS_PER_SEC = 1e9;
-const msgNo = 500
+const msgNo = 5000
 const msgSize = 32
 
 // Generate an array of random messages
@@ -17,10 +17,10 @@ encArray = new Array(msgNo)
 
 // Generate the ecdh keys of both parties
 // Alice is the sender, Bob is the receiver
-var alice = crypto.createECDH(eciesOpts.curveName)
-var alicePubKey = alice.generateKeys()
+var alice = crypto.createECDH(options.curveName)
+alice.generateKeys()
 var alicePrivateKey = alice.getPrivateKey()
-var bob = crypto.createECDH(eciesOpts.curveName)
+var bob = crypto.createECDH(options.curveName)
 var bobPubKey = bob.generateKeys()
 var bobPrivateKey = bob.getPrivateKey()
 
