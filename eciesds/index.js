@@ -78,7 +78,9 @@ exports.encrypt = function (senderECKeyPair, receiverECDHPublicKey, message) {
   //And now we use the EC private key of the sender to sign the tag
 
   var senderSign = crypto.createSign(options.kdfName)
-  senderSign.update(serializedEnvelopeTag)
+  senderSign.update(Buffer.concat(
+    [serializedEnvelopeTag, ephemeralSharedSecret],
+    serializedEnvelopeTag.length + ephemeralSharedSecret.length))
   senderSign.end();
   const senderSignature = senderSign.sign(senderECKeyPair.privateKey, 'base64url')
 
@@ -130,7 +132,9 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
 
   const signatureBuffer = Buffer.from(encEnvelope.sig, 'base64url')
   const receiverVerify = crypto.createVerify(options.kdfName)
-  receiverVerify.update(serializedEnvelopeTag)
+  receiverVerify.update(Buffer.concat(
+    [serializedEnvelopeTag, ephemeralSharedSecret],
+    serializedEnvelopeTag.length + ephemeralSharedSecret.length))
   receiverVerify.end()
   assert(receiverVerify.verify(senderAuthMsgEnvelope.from, signatureBuffer) === true, "eciesds::decrypt(): Bad signature")
   return {

@@ -3,8 +3,8 @@ const eciesds = require('../eciesds')
 const options = require('../options')
 
 const NS_PER_SEC = 1e9;
-const msgNo = 500
-const msgSize = 32
+const msgNo = 5000
+const msgSize = 100
 
 // Generate an array of random messages
 msgArray = new Array(msgNo)
@@ -12,7 +12,6 @@ for (i = 0; i < msgNo ; ++i) {
     msgArray[i] = crypto.pseudoRandomBytes(msgSize)
 }
 encArray = new Array(msgNo)
-
 
 const aliceECKeyPair = crypto.generateKeyPairSync('ec', {
     namedCurve: options.curveName,
