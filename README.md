@@ -1,1 +1,1 @@
-# js-auth-crypt-samples
+# js-mutual-auth-ecies
