@@ -9,6 +9,9 @@ const crypto = require('crypto');
 const assert = require('assert');
 const options = require('../options');
 
+let ENCFORMAT = 'base64';
+
+
 // Symmetric decryption based on the input key. This function assumes
 // that we are using a symmetric cipher that does not require an IV
 function symmetricEncrypt(cypherName, key, plaintext) {
@@ -46,9 +49,9 @@ function equalConstTime(b1, b2) {
 
 exports.encrypt = function (senderECKeyPair, receiverECDHPublicKey, message) {
 
-  var messageEncoded = message.toString('base64url')
+  let messageEncoded = message.toString(ENCFORMAT)
 
-  var senderAuthMsgEnvelope = {
+  let senderAuthMsgEnvelope = {
     from: senderECKeyPair.publicKey,
     msg: messageEncoded
   }
@@ -57,7 +60,7 @@ exports.encrypt = function (senderECKeyPair, receiverECDHPublicKey, message) {
 
   // Ok, now we are going to compute the ephemeral DH secret based on the public key of the
   // receiver
-  var ephemeralSenderECDH = crypto.createECDH(options.curveName)
+  let ephemeralSenderECDH = crypto.createECDH(options.curveName)
   const R = ephemeralSenderECDH.generateKeys()
 
   // Ephemeral Shared Secret
@@ -77,18 +80,18 @@ exports.encrypt = function (senderECKeyPair, receiverECDHPublicKey, message) {
 
   //And now we use the EC private key of the sender to sign the tag
 
-  var senderSign = crypto.createSign(options.kdfName)
+  let senderSign = crypto.createSign(options.kdfName)
   senderSign.update(Buffer.concat(
     [serializedEnvelopeTag, ephemeralSharedSecret],
     serializedEnvelopeTag.length + ephemeralSharedSecret.length))
   senderSign.end();
-  const senderSignature = senderSign.sign(senderECKeyPair.privateKey, 'base64url')
+  const senderSignature = senderSign.sign(senderECKeyPair.privateKey, ENCFORMAT)
 
   return {
-    to: receiverECDHPublicKey.toString('base64url'),
-    r: R.toString('base64url'),
-    ct: serializedEnvelopeCiphertext.toString('base64url'),
-    tag: serializedEnvelopeTag.toString('base64url'),
+    to: receiverECDHPublicKey.toString(ENCFORMAT),
+    r: R.toString(ENCFORMAT),
+    ct: serializedEnvelopeCiphertext.toString(ENCFORMAT),
+    tag: serializedEnvelopeTag.toString(ENCFORMAT),
     sig: senderSignature
   }
 };
@@ -104,11 +107,11 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
   const ephemeralReceiverECDH = crypto.createECDH(options.curveName);
   ephemeralReceiverECDH.setPrivateKey(receiverPrivateKey)
 
-  assert(equalConstTime(ephemeralReceiverECDH.getPublicKey().toString('base64url'), encEnvelope.to),
+  assert(equalConstTime(ephemeralReceiverECDH.getPublicKey().toString(ENCFORMAT), encEnvelope.to),
     "eciesds::decrypt(): Public keys do not match")
 
   // Ephemeral Shared Secret
-  const ephemeralSharedSecret = ephemeralReceiverECDH.computeSecret(Buffer.from(encEnvelope.r, 'base64url'));
+  const ephemeralSharedSecret = ephemeralReceiverECDH.computeSecret(Buffer.from(encEnvelope.r, ENCFORMAT));
 
   // Derive the ephemeral encryption key (ephEncKey) and the ephemeral MAC key (ephMACKey)
   // ephEncKey || epcMACKey = KDF(ephemeralSharedSecret)
@@ -119,18 +122,18 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
   const ephemeralEncKey = ephemeralKDF.slice(0, options.kdfLength / 2);
   const ephemeralMACKey = ephemeralKDF.slice(options.kdfLength / 2);
 
-  const ciphertextBuffer = Buffer.from(encEnvelope.ct, 'base64url')
+  const ciphertextBuffer = Buffer.from(encEnvelope.ct, ENCFORMAT)
 
   const serializedEnvelopeTag = macMessage(options.macName, ephemeralMACKey, ciphertextBuffer);
-  assert(equalConstTime(serializedEnvelopeTag.toString('base64url'), encEnvelope.tag), "eciesds::decrypt(): Bad MAC")
+  assert(equalConstTime(serializedEnvelopeTag.toString(ENCFORMAT), encEnvelope.tag), "eciesds::decrypt(): Bad MAC")
 
-  var senderAuthMsgEnvelopeSerialized = symmetricDecrypt(options.symmetricCypherName, ephemeralEncKey, ciphertextBuffer)
-  var senderAuthMsgEnvelope = JSON.parse(senderAuthMsgEnvelopeSerialized.toString())
+  let senderAuthMsgEnvelopeSerialized = symmetricDecrypt(options.symmetricCypherName, ephemeralEncKey, ciphertextBuffer)
+  let senderAuthMsgEnvelope = JSON.parse(senderAuthMsgEnvelopeSerialized.toString())
 
   assert(('from' in senderAuthMsgEnvelope), "eciesds::decrypt(): 'from' property not found on sender's authenticated envelope")
   assert(('msg' in senderAuthMsgEnvelope), "eciesds::decrypt(): 'msg' property not found on sender's authenticated envelope")
 
-  const signatureBuffer = Buffer.from(encEnvelope.sig, 'base64url')
+  const signatureBuffer = Buffer.from(encEnvelope.sig, ENCFORMAT)
   const receiverVerify = crypto.createVerify(options.kdfName)
   receiverVerify.update(Buffer.concat(
     [serializedEnvelopeTag, ephemeralSharedSecret],
@@ -139,6 +142,6 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
   assert(receiverVerify.verify(senderAuthMsgEnvelope.from, signatureBuffer) === true, "eciesds::decrypt(): Bad signature")
   return {
     from: senderAuthMsgEnvelope.from,
-    message: Buffer.from(senderAuthMsgEnvelope.msg, 'base64url')
+    message: Buffer.from(senderAuthMsgEnvelope.msg, ENCFORMAT)
   }
 }

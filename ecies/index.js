@@ -42,6 +42,8 @@ const crypto = require('crypto');
 const assert = require('assert');
 const options = require('../options')
 
+let ENCFORMAT = 'base64';
+
 // Symmetric decryption based on the input key. This function assumes
 // that we are using a symmetric cipher that does not require an IV
 function symmetricEncrypt(cypherName, key, plaintext) {
@@ -86,20 +88,23 @@ exports.encrypt = function (senderPrivateKey, receiverPublicKey, message) {
   // of the sender so that we can use it to "authenticate" the message sender to
   // the receiver.
 
-  var senderECDH = crypto.createECDH(options.curveName)
+  let senderECDH = crypto.createECDH(options.curveName)
   senderECDH.setPrivateKey(senderPrivateKey)
 
   // Shared secret that the receiver can produce by knowing the public-key of
   // the sender and by using his own private key
   const senderSharedSecret = senderECDH.computeSecret(receiverPublicKey)
 
-  var messageEncoded = message.toString('base64url')
+  let messageEncoded = message.toString(ENCFORMAT);
+  
+  
+  
 
   // Wrap them all in an envelope. We don't need to encrypt the message
   // here because we are going to encrypt the entire envelope with an
   // ephemeral key right after
-  var senderAuthMsgEnvelope = {
-    from: senderECDH.getPublicKey().toString('base64url'),
+  let senderAuthMsgEnvelope = {
+    from: senderECDH.getPublicKey().toString(ENCFORMAT),
     msg: messageEncoded
   }
 
@@ -107,7 +112,7 @@ exports.encrypt = function (senderPrivateKey, receiverPublicKey, message) {
 
   // Ok, now we are going to compute the ephemeral DH secret based on the public key of the
   // receiver
-  var ephemeralSenderECDH = crypto.createECDH(options.curveName)
+  let ephemeralSenderECDH = crypto.createECDH(options.curveName)
   const R = ephemeralSenderECDH.generateKeys()
 
   // Ephemeral Shared Secret
@@ -129,10 +134,10 @@ exports.encrypt = function (senderPrivateKey, receiverPublicKey, message) {
       serializedEnvelopeCiphertext.length + senderSharedSecret.length));
 
   return {
-    to: receiverPublicKey.toString('base64url'),
-    r: R.toString('base64url'),
-    ct: serializedEnvelopeCiphertext.toString('base64url'),
-    tag: serializedEnvelopeTag.toString('base64url')
+    to: receiverPublicKey.toString(ENCFORMAT),
+    r: R.toString(ENCFORMAT),
+    ct: serializedEnvelopeCiphertext.toString(ENCFORMAT),
+    tag: serializedEnvelopeTag.toString(ENCFORMAT)
   }
 };
 
@@ -146,11 +151,11 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
   const ephemeralReceiverECDH = crypto.createECDH(options.curveName);
   ephemeralReceiverECDH.setPrivateKey(receiverPrivateKey)
 
-  assert(equalConstTime(ephemeralReceiverECDH.getPublicKey().toString('base64url'), encEnvelope.to),
+  assert(equalConstTime(ephemeralReceiverECDH.getPublicKey().toString(ENCFORMAT), encEnvelope.to),
     "ecies::decrypt(): Public keys do not match")
 
   // Ephemeral Shared Secret
-  const ephemeralSharedSecret = ephemeralReceiverECDH.computeSecret(Buffer.from(encEnvelope.r, 'base64url'));
+  const ephemeralSharedSecret = ephemeralReceiverECDH.computeSecret(Buffer.from(encEnvelope.r, ENCFORMAT));
 
   // Derive the ephemeral encryption key (ephEncKey) and the ephemeral MAC key (ephMACKey)
   // ephEncKey || epcMACKey = KDF(ephemeralSharedSecret)
@@ -161,28 +166,28 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
   const ephemeralEncKey = ephemeralKDF.slice(0, options.kdfLength / 2);
   const ephemeralMACKey = ephemeralKDF.slice(options.kdfLength / 2);
 
-  const ciphertextBuffer = Buffer.from(encEnvelope.ct, 'base64url')
+  const ciphertextBuffer = Buffer.from(encEnvelope.ct, ENCFORMAT)
 
-  var senderAuthMsgEnvelopeSerialized = symmetricDecrypt(options.symmetricCypherName, ephemeralEncKey, ciphertextBuffer)
-  var senderAuthMsgEnvelope = JSON.parse(senderAuthMsgEnvelopeSerialized.toString())
+  let senderAuthMsgEnvelopeSerialized = symmetricDecrypt(options.symmetricCypherName, ephemeralEncKey, ciphertextBuffer)
+  let senderAuthMsgEnvelope = JSON.parse(senderAuthMsgEnvelopeSerialized.toString())
 
   assert(('from' in senderAuthMsgEnvelope), "ecies::decrypt(): 'from' property not found on sender's authenticated envelope")
   assert(('msg' in senderAuthMsgEnvelope), "ecies::decrypt(): 'msg' property not found on sender's authenticated envelope")
 
-  var senderPublicKey = Buffer.from(senderAuthMsgEnvelope.from, 'base64url')
-  var receiverECDH = crypto.createECDH(options.curveName)
+  let senderPublicKey = Buffer.from(senderAuthMsgEnvelope.from, ENCFORMAT)
+  let receiverECDH = crypto.createECDH(options.curveName)
   receiverECDH.setPrivateKey(receiverPrivateKey)
-  var receiverSharedSecret = receiverECDH.computeSecret(senderPublicKey)
+  let receiverSharedSecret = receiverECDH.computeSecret(senderPublicKey)
 
 
   const serializedEnvelopeTag = macMessage(options.macName, ephemeralMACKey,
     Buffer.concat(
       [ciphertextBuffer, receiverSharedSecret],
       ciphertextBuffer.length + receiverSharedSecret.length));
-  assert(equalConstTime(serializedEnvelopeTag.toString('base64url'), encEnvelope.tag), "ecies::decrypt(): Bad MAC")
+  assert(equalConstTime(serializedEnvelopeTag.toString(ENCFORMAT), encEnvelope.tag), "ecies::decrypt(): Bad MAC")
 
   return {
     from: senderPublicKey,
-    message: Buffer.from(senderAuthMsgEnvelope.msg, 'base64url')
+    message: Buffer.from(senderAuthMsgEnvelope.msg, ENCFORMAT)
   };
 }
