@@ -8,7 +8,7 @@ const plainTextMessage = Buffer.from('hello world');
 const KEYFORMAT = "der"
 
 $$ = {Buffer};
-let pskcrypto = require("../epi-workspace/privatesky/modules/pskcrypto");
+let pskcrypto = require("../pskcrypto");
 
 /*
 const aliceECKeyPair = crypto.generateKeyPairSync('ec', {

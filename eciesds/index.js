@@ -11,7 +11,6 @@ const options = require('../options');
 
 let ENCFORMAT = 'base64';
 
-
 // Symmetric decryption based on the input key. This function assumes
 // that we are using a symmetric cipher that does not require an IV
 function symmetricEncrypt(cypherName, key, plaintext) {
@@ -104,6 +103,13 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
   assert(('tag' in encEnvelope), "eciesds::decrypt(): 'tag' property not found on input encrypted envelope")
   assert(('sig' in encEnvelope), "eciesds::decrypt(): 'sig' property not found on input encrypted envelope")
 
+  /*
+  let mandatoryProps = ["sig",...]
+  mandatoryProps.forEach( (prp) => {
+    if(typeof encEnvelope[prp] == "undefined") throw new Error("Key missiing");
+  }) */
+
+
   const ephemeralReceiverECDH = crypto.createECDH(options.curveName);
   ephemeralReceiverECDH.setPrivateKey(receiverPrivateKey)
 
@@ -145,3 +151,34 @@ exports.decrypt = function (receiverPrivateKey, encEnvelope) {
     message: Buffer.from(senderAuthMsgEnvelope.msg, ENCFORMAT)
   }
 }
+
+/*
+function createOtherFunction(input1){
+  let input2 = input1;
+  return function(){
+    input2++;
+    console.log(input2);
+  }
+}
+
+let myShinyFunct = createOtherFunction(1);
+
+myShinyFunct();
+myShinyFunct();
+
+function MyClass(arg1){
+  let self = this;
+  this.member = arg1;
+  this.method = function(){
+    self.member = 2;
+  }
+
+  this.method = (arg) => {
+      this.member
+  };
+
+}
+
+let my = new MyClass(1);
+
+*/
