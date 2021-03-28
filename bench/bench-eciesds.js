@@ -11,7 +11,7 @@ const msgSize = 100
 // Generate an array of random messages
 msgArray = new Array(msgNo)
 for (i = 0; i < msgNo ; ++i) {
-    msgArray[i] = crypto.pseudoRandomBytes(msgSize)
+    msgArray[i] = crypto.pseudoRandomBytes(msgSize).toString()
 }
 encArray = new Array(msgNo)
 

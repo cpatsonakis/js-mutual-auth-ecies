@@ -23,10 +23,10 @@ let config = {
   symmetricDecrypt: symmetricDecrypt,
   computeKeyedMAC: computeKeyedMAC,
   verifyKeyedMAC: verifyKeyedMAC,
-  signBuffer: signBuffer,
-  verifyBufferSignature: verifyBufferSignature,
+  computeDigitalSignature: computeDigitalSignature,
+  verifyDigitalSignature: verifyDigitalSignature,
   senderComputeECDHValues: senderComputeECDHValues,
-  receiverDeriveSharedSecret: receiverDeriveSharedSecret
+  receiverComputeECDHSharedSecret: receiverComputeECDHSharedSecret
 };
 
 function symmetricEncrypt(key, plaintext) {
@@ -71,7 +71,7 @@ function computeSymmetricEncAndMACKeysFromSecret(secretValue) {
   };
 }
 
-function signBuffer(privateKeyPEM, buffer) {
+function computeDigitalSignature(privateKeyPEM, buffer) {
   let signObject = crypto.createSign(config.cryptoOptions.signHashFunction)
   signObject.update(buffer)
   signObject.end();
@@ -110,7 +110,7 @@ function encrypt(senderECKeyPairPEM, receiverECPublicKeyDER, message) {
   const ciphertext = config.symmetricEncrypt(symmetricEncryptionKey, senderAuthMsgEnvelopeSerialized)
   const tag = config.computeKeyedMAC(macKey, ciphertext)
 
-  const signature = config.signBuffer(senderECKeyPairPEM.privateKey, 
+  const signature = config.computeDigitalSignature(senderECKeyPairPEM.privateKey, 
     Buffer.concat([tag, sharedSecret], tag.length + sharedSecret.length))
 
   return {
@@ -143,7 +143,7 @@ function equalConstTime(b1, b2) {
   return result === 0;
 }
 
-function receiverDeriveSharedSecret(receiverPrivateKeyDER, envelope) {
+function receiverComputeECDHSharedSecret(receiverPrivateKeyDER, envelope) {
   const ephemeralReceiverECDH = crypto.createECDH(config.cryptoOptions.curveName);
   ephemeralReceiverECDH.setPrivateKey(receiverPrivateKeyDER)
   if (!equalConstTime(ephemeralReceiverECDH.getPublicKey().toString(config.encodingFormat), envelope.to)) {
@@ -168,7 +168,7 @@ function checkWrappedMessageMandatoryProperties(wrappedMessage) {
   })
 }
 
-function verifyBufferSignature(publicKeyPEM, signature, buffer) {
+function verifyDigitalSignature(publicKeyPEM, signature, buffer) {
   let verifyObject = crypto.createVerify(config.cryptoOptions.signHashFunction)
   verifyObject.update(buffer)
   verifyObject.end()
@@ -181,7 +181,7 @@ function decrypt(receiverPrivateKeyDER, encEnvelope) {
 
   checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
 
-  const sharedSecret = config.receiverDeriveSharedSecret(receiverPrivateKeyDER, encEnvelope)
+  const sharedSecret = config.receiverComputeECDHSharedSecret(receiverPrivateKeyDER, encEnvelope)
 
   const {symmetricEncryptionKey, macKey} = computeSymmetricEncAndMACKeysFromSecret(sharedSecret)
 
@@ -193,7 +193,7 @@ function decrypt(receiverPrivateKeyDER, encEnvelope) {
   let wrappedMessageObject = JSON.parse(config.symmetricDecrypt(symmetricEncryptionKey, ciphertext).toString())
   checkWrappedMessageMandatoryProperties(wrappedMessageObject)
 
-  config.verifyBufferSignature(wrappedMessageObject.from,
+  config.verifyDigitalSignature(wrappedMessageObject.from,
     Buffer.from(encEnvelope.sig, config.encodingFormat),
     Buffer.concat([tag, sharedSecret], tag.length + sharedSecret.length))
   return {
