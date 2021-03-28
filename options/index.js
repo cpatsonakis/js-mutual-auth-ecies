@@ -7,6 +7,8 @@ module.exports = {
     macName: 'sha3-256',
     macLength: 32,
     curveName: 'secp256k1',
-    symmetricCypherName: 'aes-128-ecb',
-    keyFormat: 'uncompressed'
+    symmetricCipherName: 'aes-128-ecb',
+    symmetricCipherKeySize: 16,
+    keyFormat: 'uncompressed',
+    encodingFormat: 'base64'
 };

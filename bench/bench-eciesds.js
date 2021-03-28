@@ -1,6 +1,8 @@
-const crypto = require('crypto')
 const eciesds = require('../eciesds')
-const options = require('../options')
+const crypto = require('crypto')
+$$ = {Buffer}; //??? What the heck is this thing???
+const pskcrypto = require("../pskcrypto");
+
 
 const NS_PER_SEC = 1e9;
 const msgNo = 5000
@@ -13,26 +15,15 @@ for (i = 0; i < msgNo ; ++i) {
 }
 encArray = new Array(msgNo)
 
-const aliceECKeyPair = crypto.generateKeyPairSync('ec', {
-    namedCurve: options.curveName,
-    publicKeyEncoding: {
-        type: 'spki',
-        format: 'pem'
-    },
-    privateKeyEncoding: {
-        type: 'sec1',
-        format: 'pem'
-    }
-})
-
-const bobECDH = crypto.createECDH(options.curveName)
-bobECDHPublicKey = bobECDH.generateKeys()
-bobECDHPrivateKey = bobECDH.getPrivateKey()
+let keyGenerator = pskcrypto.createKeyPairGenerator();
+let aliceECKeyPair = keyGenerator.generateKeyPair();
+let bobECKeyPair = keyGenerator.generateKeyPair();
+let alicePEMKeyPair = keyGenerator.getPemKeys(aliceECKeyPair.privateKey, aliceECKeyPair.publicKey)
 
 // Start with encyptions
 var startTime = process.hrtime();
 for (i = 0 ; i < msgNo ; ++i) {
-    encArray[i] = eciesds.encrypt(aliceECKeyPair, bobECDHPublicKey, msgArray[i])
+    encArray[i] = eciesds.encrypt(alicePEMKeyPair, bobECKeyPair.publicKey, msgArray[i])
 }
 var totalHRTime = process.hrtime(startTime);
 var encTimeSecs = (totalHRTime[0]* NS_PER_SEC + totalHRTime[1]) / NS_PER_SEC
@@ -40,7 +31,7 @@ var encTimeSecs = (totalHRTime[0]* NS_PER_SEC + totalHRTime[1]) / NS_PER_SEC
 // Do decryptions now
 startTime = process.hrtime();
 for (i = 0 ; i < msgNo ; ++i) {
-    eciesds.decrypt(bobECDHPrivateKey, encArray[i])
+    eciesds.decrypt(bobECKeyPair.privateKey, encArray[i])
 }
 totalHRTime = process.hrtime(startTime);
 var decTimeSecs = (totalHRTime[0]* NS_PER_SEC + totalHRTime[1]) / NS_PER_SEC
