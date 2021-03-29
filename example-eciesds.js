@@ -12,8 +12,11 @@ let alicePEMKeyPair = keyGenerator.getPemKeys(aliceECKeyPair.privateKey, aliceEC
 
 
 let encEnvelope = eciesds.encrypt(alicePEMKeyPair, bobECKeyPair.publicKey, plainTextMessage)
+console.log("Encrypted Envelope:")
 console.log(encEnvelope)
 let decEnvelope = eciesds.decrypt(bobECKeyPair.privateKey, encEnvelope)
-console.log(decEnvelope)
 assert(decEnvelope.from === alicePEMKeyPair.publicKey, "PUBLIC KEYS ARE NOT EQUAL")
-console.log("Decrypted message is: " + decEnvelope.message);
+console.log("Decrypted Envelope:")
+console.log(decEnvelope)
+
+console.log(JSON.stringify(eciesds.config))
