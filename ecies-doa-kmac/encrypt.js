@@ -12,6 +12,10 @@ function senderMessageWrapAndSerialization(senderPublicKey, message) {
 
 module.exports.encrypt = function (senderKeyPair, receiverPublicKey, message) {
 
+  if (!Buffer.isBuffer(message)) {
+    throw new Error('Input message has to be of type Buffer')
+}
+
   const senderDerivedSharedSecret = mycrypto.ECEphemeralKeyAgreement.computeSharedSecretFromKeyPair(senderKeyPair.privateKey, receiverPublicKey)
 
   const senderAuthMsgEnvelopeSerialized = senderMessageWrapAndSerialization(senderKeyPair.publicKey, message);

@@ -46,7 +46,7 @@ module.exports.decrypt = function (receiverPrivateKey, encEnvelope) {
     )
 
     return {
-        from: senderPublicKey,
-        message: wrappedMessageObject.msg
+        from: Buffer.from(senderPublicKey, mycrypto.encodingFormat),
+        message: Buffer.from(wrappedMessageObject.msg, mycrypto.encodingFormat)
     };
 }
