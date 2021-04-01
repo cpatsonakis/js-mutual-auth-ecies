@@ -29,19 +29,19 @@ As was previously noted, ECIES provides a wide range of flexibility in terms of 
 We wish to preserve this property across all implementations provided here. To this end, we expose to developers an object that will allow them to configure the respective module according to their (use case) requirements. Moreover, this allows us to abstract the dependency on JavaScript's `crypto` module. Put simply, if you have another cryptographic library that you are more comfortable with, or even prefer using, with a little bit of coding, you will be able to use it. Lastly, we do not expect that all developers that will use the code provided here will have the ability to reason about the security of their choices. Hence, we developed a *default* `crypto` module (`crypto/` directory), which is shared across all implementations and was developed by having security as the first priority. The defaults for all the aforementioned abstract functions were chosen based on the seminal work that introduced [DHIES](http://web.cs.ucdavis.edu/~rogaway/papers/dhies.pdf), standards' specifications (ANSI X9.63, IEEE 1363a, ISO/IEC 18033-2 and SECG SEC1), as well as, the implementation guidelines of [Martinez et al.](https://www.tic.itefi.csic.es/CIBERDINE/Documetos/Cryptologia%20-%20Security%20and%20practical%20considerations%20when%20implementing%20ECIES%20-%20v1.0.pdf)
 
 In the following, we document and briefly discuss the default instantiation options of the `crypto` module provided here:
-1. Key agreement (KA): Elliptic curve Diffie-Hellman Ephemeral (ECDHE). Although, we note that the implementation provided here allows for plain ECDH as well.
+1. Key agreement (KA): Elliptic Curve Diffie-Hellman Ephemeral (ECDHE). Although, we note that the implementation provided here allows for plain ECDH as well.
 1. Key derivation function (KDF): KDF2 as defined in [ISO/IEC 18033-2](https://www.shoup.net/iso/std6.pdf). To provide for resilience against benign maleability, we refer the reader to the `common` module that illustrates how the input to this function should be computed, based on which we derive the symmetric encryption and KMAC keys.
 1. Hash function: SHA-2-256, which is typically referred to as SHA256. However, we consider the latter naming misleading as it does not clearly convey the hash function family and, based on our real-world experience, causes confusion to some developers following the introduction of the Keccak hash function family (SHA-3), which also has a 256 bit instantiation.
 1. Symmetric cipher: `AES-128-CBC`. 
 1. Keyed-hash message authentication code (KMAC): HMAC construction based on SHA-2-256 and a 128-bit key.
 
-An astute reader (or evidently anyone that reads this statement) may ponder as to why we did not employ a standard authenticated encryption scheme, such as `AES-128-GCM`. It is true that we could have employed, e.g., the `setAAD()` and `setAuthTag()` functions during encryption and decryption, respectively. From a conceptual point of view, we wanted to separate the process of symmetric encryption from that of MAC computation to provide for more flexibility. In addition, it is unclear how the aforementioned API computes the MAC. Are developers supposed to supply the KMAC key in the `setAAD()` function? The documentation does not elaborate on such important details. We acknowledge that our choice might incur a slight performance penalty, however, recall that security is our number one priority.
+An astute reader (or evidently anyone that reads this statement) may ponder as to why we did not employ a standard authenticated encryption scheme, such as `AES-128-GCM`. It is true that we could have employed, e.g., the `setAAD()` and `setAuthTag()` functions during encryption and decryption, respectively. From a conceptual point of view, we wanted to separate the process of symmetric encryption from that of MAC computation to provide for more flexibility. In addition, it is unclear how the aforementioned API computes the MAC. Are developers supposed to supply the KMAC key in the `setAAD()` function? The documentation does not elaborate on such important details. The only option would be to go through the code base of JavaScript's default `crypto` module, or even worse the underlying OpenSSL C-based library. We obviously did not and will not do that. Naturally, we acknowledge that our choice might incur a slight performance penalty, however, recall that security is our number one priority.
 
  That being said, it is important at this point to briefly discuss an important issue, i.e., the importance of **using different keys for encryption and KMAC computation**. We have witnessed several cases where implementations employ the same key for both of these processes. We stress, in short, that use of a single key `k` may allow an attacker to modify the ciphertext `ct` -mind you, without even having knowledge of the plaintext- to `ct'`, such that the KMAC will still be valid at the receiver's end. This does not apply to all symmetric cipher suites, however, it is considered best practice among the cryptographic community to use separate keys, or even more generally speaking, that implementers should not use a key (or key pair) for multiple purposes.
 
 ## Configuration Options
 
-The `crypto` module provided here exposes the following object (defined in `crypto/index.js`) that provide developers the necessary means to "replace" the default functions with ones of their choice:
+The `crypto` module provided here exposes the following object (defined in `crypto/index.js`) that provides developers the necessary means to "replace" the default functions with ones of their choice:
 ```js
 {
     encodingFormat: 'base64',
@@ -75,7 +75,7 @@ In the following, we elaborate on the concrete meaning of all these options.
 >### computeDigitalSignature(privateKeyPEM, buffer)
 - #### **Description:** Compute an ECDSA digital signature on the input buffer.
 - #### **privateKeyPEM**: The signing private key in PEM format.
-- #### **buffer**: A buffer that contains the data to be signed
+- #### **buffer**: A buffer that contains the data to be signed.
 - #### **Returns**:  The computed ECDSA digital signature.
 
 We note that digital signatures, by default, employ the SHA-2-256 hash function (refer to `crypto/config.js` for a complete list of cryptographic parameters)
@@ -160,7 +160,7 @@ The `KDF` property of the default cryptographic configuration points to the impl
 
 Lastly, the `params` property of the default cryptographic configuration contains values that are required by the encryption and decryption algorithms of ECIES implementations. These are as follows:
 
-- `symmetricCipherKeySize`: The byte size of the symmetric cipher's key. Since the default implementation employs AES-128-CBC, it's set to 16 bytes (128 bits).
+- `symmetricCipherKeySize`: The byte size of the symmetric cipher's key. Since the default implementation employs `AES-128-CBC`, it's set to 16 bytes (128 bits).
 - `macKeySize`: The byte size of the key that will be input to the KMAC algorithms. Defaults to 16 bytes (128 bits).
 - `ivSize`: The byte size of the symmetric cipher's IV which, for block ciphers, is equal to the size of the cipher's block, i.e., in 16 bytes (128 bits) for AES.
 
@@ -210,7 +210,7 @@ In this section, we document the main functions that are exposed by this module,
 - #### **senderECKeyPairPEM**: An object with properties `publicKey` and `privateKey` that encompass the sender's EC key pair. Both keys should be in PEM format.
 - #### **receiverECPublicKey**: The EC public key of the receiver as a Buffer. **Note** that this is not in a standardized format, i.e., DER or PEM. In short, this key should be in the same form as the ones returned by JavaScript's ECDH `crypto.generateKeys()` method, which, in short is a stripped version of DER encoding after removing the first 23 bytes. Refer to the [Notes on JavaScript's Crypto API](#notes-on-javascript\'s-crypto-api) section for more information.
 - #### **message**: The message as a Buffer that we want to encrypt and send across the wire.
-- #### **Returns**:  An encrypted envelope object (described below)
+- #### **Returns**:  An encrypted envelope object (described below).
 
 This function should **always** be invoked in a `try-catch` block as it can throw exceptions for various reasons, e.g., improperly formatted keys, keys that are not on the configured curve etc. The encrypted envelope object returned by this function has the following structure:
 
@@ -250,7 +250,7 @@ The `from` field contains the PEM encoded public key of the sender and the `mess
 
 ## Benchmark
 
-A simple benchmark for this implementation is provided in the `bench/bench-eciesds.js` file. You can tune the number and size of messages by modifying the `msgNo` and `msgSize` variables at the beginning of the file. The output of this script is along the lines of:
+A simple benchmark for this implementation is provided in the `bench/bench-ecies-doa-ds.js` file. You can tune the number and size of messages by modifying the `msgNo` and `msgSize` variables at the beginning of the file. The output of this script is along the lines of:
 
 ```
 ECIES-DOA-DS Benchmark Inputs: 500 messages, message_size = 100 bytes
