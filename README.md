@@ -4,12 +4,12 @@ The Diffie-Hellman Integrated Encryption Scheme ([DHIES](http://web.cs.ucdavis.e
 In this repository, we provide several different JavaScript implementations of ECIES. A subset of the implementations have **the added property that the message sender authenticates herself to the receiver (and only to the receiver). We stress that this is not the case in the standard ECIES scheme.** Hence, this repo was named `js-mutual-auth-ecies`. Although, in retrospect, we regretted the name choice as it is slightly misleading.
 
 # Disclaimer & Dependencies
-The code of this repository was developed with the intent of being integrated with the [OpenDSU](https://github.com/PrivateSky/OpenDSU) codebase, as part of the [PharmaLedger H2020](https://pharmaledger.eu/) project's efforts. To ensure compatibility with the OpenDSU codebase, the implementations provided here depend on the `pskcrypto` module of OpenDSU which, for your convenience dear sir/madam/wherever-in-the-gender-spectrum-you-are, is provided here! We stress, however, that the involvement of the `pskcrypto` module relates **only** to key generation and converting keys to PEM format. Therefore, conceptually, one can easily strip `pskcrypto` entirely from the code base provided here with minimal effort. For a more elaborate description of the issues and our (unfortunate) experiences with JavaScript's `crypto` module, we refer the interested reader to the [Notes on JavaScript's Crypto API](#notes-on-javascript\'s-crypto-api) section of this documentation.
+The code of this repository was developed with the intent of being integrated with the [OpenDSU](https://github.com/PrivateSky/OpenDSU) codebase, as part of the [PharmaLedger H2020](https://pharmaledger.eu/) project's efforts. To ensure compatibility with the OpenDSU codebase, the implementations provided here depend on the `pskcrypto` module of OpenDSU which, for your convenience dear sir/madam/wherever-in-the-gender-spectrum-you-are, is provided here! We stress, however, that the involvement of the `pskcrypto` module relates **only** to key generation and converting keys to PEM format. Therefore, conceptually, one can easily strip `pskcrypto` entirely from the code base provided here with minimal effort. For a more elaborate description of the issues and our (unfortunate) experiences with JavaScript's `crypto` module, we refer the interested reader to the [NotesJSCrypto.md](NotesJSCrypto.md) file.
 
 # Overview
 A subset of the implementations include the acronym *DOA* in their name, which stands for data origin authentication. Put simply, these implementations also authenticate the sender of the message to the receiver (and only to the receiver). In the following, we provide a succinct overview of the ECIES implementations that are provided in this repository, namely:
 
-- [ECIES-DOA-DS](#ecies-doa-ds): This acronym stands for ECIES data origin authentication with digital signatures (DS), i.e., the sender authenticates herself **only** to the receiver by providing a randomized digital signature.
+- [ECIES-DOA-DS](#ecies-doa-ds): This acronym stands for ECIES data origin authentication with digital signatures (DS), i.e., the sender authenticates herself **only** to the receiver by digitally signing the shared secret.
 - [ECIES-DOA-KMAC](#ecies-doa-kmac): This acronym stands for ECIES data origin authentication with keyed message authentication code. In this implementation, the sender uses her private key and the receivers public key to derive a shared ECDH secret. More details in the respective section. **(PENDING SECURITY VALIDATION, DO NOT USE RIGHT NOW)**
 - [ECIES](#ecies): This is a standard ECIES implementation which provides for authenticated encryption. Note that in this implementation, the message sender is anonymous. **(NOT IMPLEMENTED YET - FUTURE WORK)**
 
@@ -167,7 +167,7 @@ Lastly, the `params` property of the default cryptographic configuration contain
 The `symmetricCipherKeySize` and `macKeySize` are required by the encryption and decryption algorithms of ECIES to compute the `outputByteSize` of the KDF. The `ivSize` is required by the encryption algorithm of ECIES to produce a sufficiently large and cryptographically random IV that will be used as input to the symmetric encryption algorithm.
 
 # ECIES-DOA-DS
-In this version of the implementation, the main idea is that we use a digital signature to authenticate the sender of the message to the receiver. However, we really don't want a man-in-the-middle (MITM) to be able to infer the public key of the sender. Indeed, we only want the receiver of the message to be able to infer the public key of the sender. A high-level description of how we achieve this is as follows. First, we encode in the ciphertext the public key of the sender (details are provided below). Since ECIES is based on ephemeral shared secrets, it (hopefully) is obvious that even if the same sender (public key) sends the same message to the same receiver, the resulting ciphertext will always have a different byte representation, or value (in the honest sender setting of course). Second, the sender computes a digital signature by concatenating the output of the KMAC function (or `tag`) with the ECDHE secret. Since the ECDHE secret can only be computed by the receiver and is unique for each message, even if we assume a MITM that has a list of all the public keys in the world, the attacker is not be able to infer the public key of the sender. Conceptually, we have this *weird* asymmetric cryptographic authenticator construction.
+In this version of the implementation, the main idea is that we use a digital signature to authenticate the sender of the message to the receiver. However, we really don't want a man-in-the-middle (MITM) to be able to infer the public key of the sender. Indeed, we only want the receiver of the message to be able to infer the public key of the sender. A high-level description of how we achieve this is as follows. The ECIES plaintext is comprised by three parts: 1) the sender's public key, 2) the actual message and, 3) a digital signature on the ECDHE secret. Since ECIES is based on ephemeral shared secrets, it (hopefully) is obvious that even if the same sender (public key) sends the same message to the same receiver, the resulting ciphertext will always have a different byte representation, or value (in the honest sender setting of course). Note also that ECDSA signatures are also randomized, which is another reason for which the resulting ciphertext will be different. In addition, since the ECDHE secret can only be computed by the receiver and is unique for each message, only the receiver can decrypt the ciphertext. Furthermore, since the sender's public key and signature is hidden inside the ECIES ciphertext, it is never exposed in transit. Hence, even if we assume a MITM that has a list of all the public keys in the world, the sender's identity is concealed. However, a malicious receiver `A` can reveal a message's origin to some other party `X` by taking advantage of the non-repudiation property of digital signatures. In order for `X` to be unequivocaly convinced, `A` is forced to reveal her private key to `X`. Lastly, we stress that a malicious receiver `A` cannot use an honest sender's `B` digital signature on some shared ephemeral secret `S` so that `A` can impersonate herself as `B` to some other receiver `C`, without breaking the discrete logarithm problem.
 
 ## Quick Start Guide
 If you are interested in just using this version of the implementation, without digging into the nitty gritty details, in the following, we provide a simple usage example, in which `Alice` wants to send a message to `Bob`:
@@ -220,8 +220,7 @@ This function should **always** be invoked in a `try-catch` block as it can thro
   "r": "BNIgR9BTXUEXTsyLMMNRaulX0XpGEKW9VUQq7VvQo/cvx2GmXyAicrMWE2LKlL6nyvVIH6RLGUr4pRpbjjuTlvA=",
   "ct": "VQjzWrHP68Ht2t0SYbWFQ8zTBY88uR7/i8HuqB4d/bsXLP3diLFBJWAcCI624uiIp1SrF/y5eXGvxqx2Cmf7BZWFpxjITkzPssWMqZzUrClQMSjtqVIIAJUQlCBMrsoVVTY1da6nNz5gkkI23cKzpJhInFh+2r1VNe7zNLCpBifuX8CXQMFPmyj2PUxJCq+wleWPWVeqFreL/ByC/dcqL3q/RZ4+ZJADZ9wRZll6IdlgHZ0DmMpyu4NyQyin7zhlOuABa+VaU7QTcXslKpEEeQ==",
   "iv": "DEqhcfpCwnpdyjqGD8v1Iw==",
-  "tag": "hhmPiBdKbpg9naoEFqsVDdpcI0kqjTpJ9CvP5Caz2zs=",
-  "sig": "MEUCIQDbbov8L/iM7V+KwNiy84fCIqMB0Qc/UO00nB+pucaXUQIgb4ZW4MRqAPVTDTA5f4/eRS/DzcN4hiLDqrRyokmYtJc="
+  "tag": "hhmPiBdKbpg9naoEFqsVDdpcI0kqjTpJ9CvP5Caz2zs="
 }
 ```
 A descriptive overview of the fields of an encrypted envelope object (assuming the default configuration options) is as follows:
@@ -230,7 +229,6 @@ A descriptive overview of the fields of an encrypted envelope object (assuming t
 1. `ct`: The encoded ciphertext.
 1. `iv`: The initialization vector of the symmetric cipher in encoded form.
 1. `tag`: The output of the KMAC function in encoded form.
-1. `sig`: The sender's digital signature in encoded form.
 
 The receiver of an encrypted envelope needs to infer which specific EC private key she should input to the decryption function. To achieve this, the receiver is, typically, expected to decode the `to` field of the received envelope and query w/e database she uses for key storage. Clearly, if the corresponding key cannot be located, the envelope should be discarded as the decryption function will throw an error. The signature of the decryption function is as follows:
 
@@ -254,8 +252,8 @@ A simple benchmark for this implementation is provided in the `bench/bench-ecies
 
 ```
 ECIES-DOA-DS Benchmark Inputs: 500 messages, message_size = 100 bytes
-Encryption benchmark results: total_time = 1.451398416 (secs), throughput = 344.49534634189655 (ops/sec), Avg_Op_Time = 0.0029027968319999997 (secs)
-Decryption benchmark results: total_time = 1.437747878 (secs), throughput = 347.7661192555765 (ops/sec), Avg_Op_Time = 0.002875495756 (secs)
+Encryption benchmark results: total_time = 1.495617838 (secs), throughput = 334.31000038660943 (ops/sec), Avg_Op_Time = 0.002991235676 (secs)
+Decryption benchmark results: total_time = 1.40161524 (secs), throughput = 356.7312809755122 (ops/sec), Avg_Op_Time = 0.0028032304799999997 (secs)
 ```
 for `msgNo=500` and `msgSize=100` in my crappy VM. I assume that the output is self-explanatory.
 
@@ -270,11 +268,6 @@ for `msgNo=500` and `msgSize=100` in my crappy VM. I assume that the output is s
 # Test Cases
 
 **WIP, Expand test cases**
-
-# Notes on JavaScript's Crypto API
-
-To our (unfortunate) surprise, JavaScript's `crypto` module does not allow EC key pairs generated by, e.g., the `generateKeyPairSync()` function, to be used for ECDH (obviously on the same curve). From a theoretical cryptography point of view, this is completely nonsensical. Furthermore, the thrown exception's message is, in all honesty, wrong and, more importantly, misleading for implementers that do not have solid knowledge of elliptic curve cryptography (ECC). **WIP**
-
 
 # To-Do List
 
