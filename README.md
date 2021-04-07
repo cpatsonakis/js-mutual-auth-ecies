@@ -11,7 +11,7 @@ A subset of the implementations include the acronym *DOA* in their name, which s
 
 - [ECIES-DOA-DS](#ecies-doa-ds): This acronym stands for ECIES data origin authentication with digital signatures (DS), i.e., the sender authenticates herself **only** to the receiver by digitally signing the shared secret.
 - [ECIES-DOA-KMAC](#ecies-doa-kmac): This acronym stands for ECIES data origin authentication with keyed message authentication code. In this implementation, the sender uses her private key and the receivers public key to derive a shared ECDH secret. More details in the respective section. **(PENDING SECURITY VALIDATION, DO NOT USE RIGHT NOW)**
-- [ECIES](#ecies): This is a standard ECIES implementation which provides for authenticated encryption. Note that in this implementation, the message sender is anonymous. **(NOT IMPLEMENTED YET - FUTURE WORK)**
+- [ECIES](#ecies): This is a standard ECIES implementation, which provides for authenticated encryption. Note that in this implementation, the message sender is anonymous.
 
 At this point, one may wonder: Why did we develop multiple implementations that essentially provide the same properties, e.g., `ECIES-DOA-DS` and `ECIES-DOA-KMAC`? Well, the short answer is: for science! We find it interesting to explore multiple avenues in reaching the same goal. On a more practical note, it is useful, in some cases, to have tangible means of assessing the actual performance of different design choices!
 
@@ -206,7 +206,6 @@ In this section, we document the main functions that are exposed by this module,
 <br>
 
 >### encrypt(senderECKeyPairPEM, receiverECPublicKey, message)
-- #### **Description:** A cryptographically secure key derivation function (KDF). The default implementation employs KDF2, which is defined in ISO/IEC 18033-2.
 - #### **senderECKeyPairPEM**: An object with properties `publicKey` and `privateKey` that encompass the sender's EC key pair. Both keys should be in PEM format.
 - #### **receiverECPublicKey**: The EC public key of the receiver as a Buffer. **Note** that this is not in a standardized format, i.e., DER or PEM. In short, this key should be in the same form as the ones returned by JavaScript's ECDH `crypto.generateKeys()` method, which, in short is a stripped version of DER encoding after removing the first 23 bytes. Refer to the [Notes on JavaScript's Crypto API](#notes-on-javascript\'s-crypto-api) section for more information.
 - #### **message**: The message as a Buffer that we want to encrypt and send across the wire.
@@ -255,15 +254,89 @@ ECIES-DOA-DS Benchmark Inputs: 500 messages, message_size = 100 bytes
 Encryption benchmark results: total_time = 1.495617838 (secs), throughput = 334.31000038660943 (ops/sec), Avg_Op_Time = 0.002991235676 (secs)
 Decryption benchmark results: total_time = 1.40161524 (secs), throughput = 356.7312809755122 (ops/sec), Avg_Op_Time = 0.0028032304799999997 (secs)
 ```
-for `msgNo=500` and `msgSize=100` in my crappy VM. I assume that the output is self-explanatory.
+for `msgNo=500` and `msgSize=100`, which was executed on a fairly resource-constrained VM.
 
 # ECIES-DOA-KMAC
 
 <span style="font-size:3em;">**WIP, DO NOT USE THIS MODULE YET**</span>
 
 # ECIES
+This is an implementation of the standard ECIES hybrid authenticated encryption scheme. We refer the interested reader to the resources that we have already provided in previous (introductory) sections of this documentation for more information.
 
-<span style="font-size:3em;">**PENDING IMPLEMENTATION**</span>
+## Quick Start Guide
+If you are interested in just using this version of the implementation, without digging into the nitty gritty details, in the following, we provide a simple usage example, in which some entity (which is anonymous) wants to send a message to `Bob`:
+
+```js
+const ecies = require('./ecies') //import the ECIES module
+const assert = require('assert').strict;
+// The next two lines are required to properly import and initialize the pskcrypto module
+$$ = {Buffer}; 
+const pskcrypto = require("./pskcrypto");
+// The message we want to transmit, as a Buffer, which is what the encrypt() function expects
+const plainTextMessage = Buffer.from('hello world');
+let keyGenerator = pskcrypto.createKeyPairGenerator(); // Object that allows us to generate EC key pairs
+let bobECKeyPair = keyGenerator.generateKeyPair(); // Generate Bob's EC key pair (message receiver)
+
+// Encrypt the message. The function returns a JSON object that you can send over any communication
+// channel you want (e.g., HTTP, WS).
+let encEnvelope = ecies.encrypt(bobECKeyPair.publicKey, plainTextMessage)
+
+// .... Message is transmitted to Bob somehow
+
+// Bob calls the decryption function and gets back an object.
+let decMessage = ecies.decrypt(bobECKeyPair.privateKey, encEnvelope)
+// Here is the decrypted message!
+console.log('Decrypted message is: ' + decMessage);
+```
+Notice that, contrary to other implementations that are provided in this repository that provide for data origin authentication, the signature of the `encrypt()` function is different. Indeed, since the sender of the message in this construction is anonymous and since ECIES is based on ephemeral secrets, the sender's key pair is stripped from the argument list of `encrypt()`. This code sample is based on the one provided in the `example-ecies.js` file.
+
+## API Specification
+
+In this section, we document the main functions that are exposed by this module, i.e., `encrypt()` and `decrypt()` (assuming the default configuration options that were previously discussed), which are defined as follows:
+<br>
+
+>### encrypt(receiverECPublicKey, message)
+- #### **receiverECPublicKey**: The EC public key of the receiver as a Buffer. **Note** that this is not in a standardized format, i.e., DER or PEM. In short, this key should be in the same form as the ones returned by JavaScript's ECDH `crypto.generateKeys()` method, which, in short is a stripped version of DER encoding after removing the first 23 bytes. Refer to the [Notes on JavaScript's Crypto API](#notes-on-javascript\'s-crypto-api) section for more information.
+- #### **message**: The message as a Buffer that we want to encrypt and send across the wire.
+- #### **Returns**:  An encrypted envelope object (described below).
+
+This function should **always** be invoked in a `try-catch` block as it can throw exceptions for various reasons, e.g., improperly formatted keys, keys that are not on the configured curve etc. The encrypted envelope object returned by this function has the following structure:
+
+```json
+{
+  "to": "BK+YzYXP/hwcvwbhro2NTD+G4/WxJJhEyZ+SgixlaROUfeEzm6k4cLCCiJ7poJTGtNspOLQ8memtEVd+JxHuszA=",
+  "r": "BJsw9fXUO/QGupbBBvYcw5RTDjWa5rYvH0B8MVsPBCezyoU2Nxc4Fv15F2A7UXy+DNu3q1Xu90N7QjWwoL24Rfk=",
+  "ct": "E5iczqVAAd3Bx/dQKBZO2g==",
+  "iv": "obEHTk9sNAEpekL0UF/Pzw==",
+  "tag": "7fBVH2xgVWwqPObVA/qUIRqbl8JJvJ8Pb10m+/0n620="
+}
+```
+A descriptive overview of the fields of an encrypted envelope object (assuming the default configuration options) is as follows:
+1. `to`: The receiver's encoded public key.
+1. `r`: The encoded ECDHE public key.
+1. `ct`: The encoded ciphertext.
+1. `iv`: The initialization vector of the symmetric cipher in encoded form.
+1. `tag`: The output of the KMAC function in encoded form.
+
+The receiver of an encrypted envelope needs to infer which specific EC private key she should input to the decryption function. To achieve this, the receiver is, typically, expected to decode the `to` field of the received envelope and query w/e database she uses for key storage. Clearly, if the corresponding key cannot be located, the envelope should be discarded as the decryption function will throw an error. The signature of the decryption function is as follows:
+
+>### decrypt(receiverPrivateKey, encEnvelope)
+- #### **receiverPrivateKey**: The private key that corresponds to the one encoded in the `to` field of the input encrypted envelope. Regarding the format of this key, we refer the reader to our notes on the `receiverECPublicKey` of the `encrypt()` function.
+- #### **encEnvelope**: An encrypted envelope object as is output by the `encrypt()` function.
+- #### **Returns**:  The decrypted message as a Buffer.
+
+This function should **always** be invoked in a `try-catch` block as it can throw exceptions for various reasons.
+
+## Benchmark
+
+A simple benchmark for this implementation is provided in the `bench/bench-ecies.js` file. You can tune the number and size of messages by modifying the `msgNo` and `msgSize` variables at the beginning of the file. The output of this script is along the lines of:
+
+```
+ECIES Benchmark Inputs: 500 messages, message_size = 100 bytes
+Encryption benchmark results: total_time = 1.094277312 (secs), throughput = 456.9225684540191 (ops/sec), Avg_Op_Time = 0.002188554624 (secs)
+Decryption benchmark results: total_time = 1.083953257 (secs), throughput = 461.2745030941865 (ops/sec), Avg_Op_Time = 0.002167906514 (secs)
+```
+for `msgNo=500` and `msgSize=100`, which was executed on a fairly resource-constrained VM.
 
 # Test Cases
 

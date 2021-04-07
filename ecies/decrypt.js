@@ -3,20 +3,12 @@
 const mycrypto = require('../crypto')
 const common = require('../common')
 
+
 function checkEncryptedEnvelopeMandatoryProperties(encryptedEnvelope) {
     const mandatoryProperties = ["to", "r", "ct", "iv", "tag"];
     mandatoryProperties.forEach((property) => {
         if (typeof encryptedEnvelope[property] === undefined) {
             throw new Error("Mandatory property " + property + " is missing from input encrypted envelope");
-        }
-    })
-}
-
-function checkWrappedMessageMandatoryProperties(wrappedMessage) {
-    const mandatoryProperties = ["from", "msg", "sig"];
-    mandatoryProperties.forEach((property) => {
-        if (typeof wrappedMessage[property] === undefined) {
-            throw new Error("Mandatory property " + property + " is missing from wrapped message");
         }
     })
 }
@@ -36,22 +28,8 @@ module.exports.decrypt = function (receiverPrivateKey, encEnvelope) {
     const tag = Buffer.from(encEnvelope.tag, mycrypto.encodingFormat)
     const iv = Buffer.from(encEnvelope.iv, mycrypto.encodingFormat)
 
-    if(!mycrypto.KMAC.verifyKMAC(tag,
-        macKey,
-        Buffer.concat([ciphertext, iv], ciphertext.length + iv.length))) {
-        throw new Error("Bad MAC")
-    }
+    mycrypto.KMAC.verifyKMAC(tag, macKey, Buffer.concat([ciphertext, iv], ciphertext.length + iv.length))
 
-    let wrappedMessageObject = JSON.parse(mycrypto.symmetricDecrypt(symmetricEncryptionKey, ciphertext, iv).toString())
-    checkWrappedMessageMandatoryProperties(wrappedMessageObject)
 
-    if (!mycrypto.verifyDigitalSignature(wrappedMessageObject.from,
-        Buffer.from(wrappedMessageObject.sig, mycrypto.encodingFormat),
-        sharedSecret)) {
-        throw new Error("Bad signature")
-    }
-    return {
-        from: wrappedMessageObject.from,
-        message: Buffer.from(wrappedMessageObject.msg, mycrypto.encodingFormat)
-    };
+    return mycrypto.symmetricDecrypt(symmetricEncryptionKey, ciphertext, iv)
 }
