@@ -1,28 +1,31 @@
 'use strict';
 
 const crypto = require('crypto');
-const config = require('./config')
 
-function ECEphemeralKeyAgreement() {
-    this.ecdh = crypto.createECDH(config.curveName);
+class ECEphemeralKeyAgreement {
 
-    this.generateEphemeralPublicKey = () => {
+    constructor() {
+        let curveName = require('./index').params.curveName;
+        this.ecdh = crypto.createECDH(curveName);
+    }
+
+    generateEphemeralPublicKey = () => {
         return this.ecdh.generateKeys();
     }
 
-    this.generateSharedSecretForPublicKey = (theirECPublicKey) => {
+    generateSharedSecretForPublicKey = (theirECDHPublicKey) => {
         try {
             this.ecdh.getPublicKey()
         } catch(error) {
-            throw new Error('You can\'t generate a shared secret for another public key without calling generateEphemeralPublicKey() first')
+            throw new Error('You cannot generate a shared secret for another public key without calling generateEphemeralPublicKey() first')
         }
-        return this.ecdh.computeSecret(theirECPublicKey);
+        return this.ecdh.computeSecret(theirECDHPublicKey);
     }
 
-    this.computeSharedSecretFromKeyPair = (myECPrivateKey, theirECPublicKey) => {
-        this.ecdh.setPrivateKey(myECPrivateKey);
-        return this.ecdh.computeSecret(theirECPublicKey);
+    computeSharedSecretFromKeyPair = (myECDHPrivateKey, theirECDHPublicKey) => {
+        this.ecdh.setPrivateKey(myECDHPrivateKey);
+        return this.ecdh.computeSecret(theirECDHPublicKey);
     }
 }
 
-module.exports = new ECEphemeralKeyAgreement()
+module.exports = ECEphemeralKeyAgreement

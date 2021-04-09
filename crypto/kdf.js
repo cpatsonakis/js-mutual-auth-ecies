@@ -1,7 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
-const config = require('./config')
+const config = require('./private_config')
 
 // Implementation of KDF2 as defined in ISO/IEC 18033-2
 function KDF2(x, outputByteSize, hashFunction = config.hashFunctionName, hashSize = config.hashSize) {

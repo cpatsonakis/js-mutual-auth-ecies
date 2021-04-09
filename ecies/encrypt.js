@@ -3,14 +3,15 @@
 const mycrypto = require('../crypto')
 const common = require('../common')
 
-module.exports.encrypt = function(receiverECPublicKey, message) {
+module.exports.encrypt = function(receiverECDHPublicKey, message) {
 
     if (!Buffer.isBuffer(message)) {
         throw new Error('Input message has to be of type Buffer')
     }
 
-    const ephemeralPublicKey = mycrypto.ECEphemeralKeyAgreement.generateEphemeralPublicKey()
-    const sharedSecret = mycrypto.ECEphemeralKeyAgreement.generateSharedSecretForPublicKey(receiverECPublicKey)
+    const ephemeralKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
+    const ephemeralPublicKey = ephemeralKeyAgreement.generateEphemeralPublicKey()
+    const sharedSecret = ephemeralKeyAgreement.generateSharedSecretForPublicKey(receiverECDHPublicKey)
 
     const kdfInput = common.computeKDFInput(ephemeralPublicKey, sharedSecret)
     const { symmetricEncryptionKey, macKey } = common.computeSymmetricEncAndMACKeys(kdfInput)
@@ -20,7 +21,7 @@ module.exports.encrypt = function(receiverECPublicKey, message) {
     const tag = mycrypto.KMAC.computeKMAC(macKey, Buffer.concat([ciphertext, iv], ciphertext.length + iv.length))
 
     return {
-        to: receiverECPublicKey.toString(mycrypto.encodingFormat),
+        to_ecdh: receiverECDHPublicKey.toString(mycrypto.encodingFormat),
         r: ephemeralPublicKey.toString(mycrypto.encodingFormat),
         ct: ciphertext.toString(mycrypto.encodingFormat),
         iv: iv.toString(mycrypto.encodingFormat),

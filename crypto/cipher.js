@@ -1,12 +1,12 @@
 'use strict';
 
 const crypto = require('crypto');
-const config = require('./config')
+const config = require('./private_config')
 
 
 function symmetricEncrypt(key, plaintext, iv) {
-    if (key.length < config.symmetricCipherKeySize) {
-        throw new Error('Symmetric encryption key does not correspond to configured security level')
+    if (key.length != config.symmetricCipherKeySize) {
+        throw new Error('Invalid length of input symmetric encryption key')
     }
     if (iv === undefined) {
         iv = null
@@ -18,8 +18,8 @@ function symmetricEncrypt(key, plaintext, iv) {
 }
 
 function symmetricDecrypt(key, ciphertext, iv) {
-    if (key.length < config.symmetricCipherKeySize) {
-        throw new Error('Symmetric decryption key does not correspond to configured security level')
+    if (key.length != config.symmetricCipherKeySize) {
+        throw new Error('Invalid length of input symmetric dencryption key')
     }
     if (iv === undefined) {
         iv = null

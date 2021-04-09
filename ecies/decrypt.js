@@ -2,24 +2,17 @@
 
 const mycrypto = require('../crypto')
 const common = require('../common')
+const utils = require('./utils')
 
-
-function checkEncryptedEnvelopeMandatoryProperties(encryptedEnvelope) {
-    const mandatoryProperties = ["to", "r", "ct", "iv", "tag"];
-    mandatoryProperties.forEach((property) => {
-        if (typeof encryptedEnvelope[property] === undefined) {
-            throw new Error("Mandatory property " + property + " is missing from input encrypted envelope");
-        }
-    })
-}
 
 module.exports.decrypt = function (receiverPrivateKey, encEnvelope) {
 
-    checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
+    utils.checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
 
     const ephemeralPublicKey = Buffer.from(encEnvelope.r, mycrypto.encodingFormat)
 
-    const sharedSecret = mycrypto.ECEphemeralKeyAgreement.computeSharedSecretFromKeyPair(receiverPrivateKey, ephemeralPublicKey)
+    const ephemeralKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
+    const sharedSecret = ephemeralKeyAgreement.computeSharedSecretFromKeyPair(receiverPrivateKey, ephemeralPublicKey)
 
     const kdfInput = common.computeKDFInput(ephemeralPublicKey, sharedSecret)
     const { symmetricEncryptionKey, macKey } = common.computeSymmetricEncAndMACKeys(kdfInput)

@@ -1,21 +1,23 @@
 'use strict';
 
 const crypto = require('crypto');
-const config = require('./config')
+const config = require('./private_config');
 
-function computeDigitalSignature(privateKeyPEM, buffer) {
+function computeDigitalSignature(privateECSigningKey, buffer) {
+    let encodingFormat = require('./index').encodingFormat;
     let signObject = crypto.createSign(config.signAlgoName)
     signObject.update(buffer)
     signObject.end();
-    return signObject.sign(privateKeyPEM, config.encodingFormat)
+    return signObject.sign(privateECSigningKey, encodingFormat)
 
 }
 
-function verifyDigitalSignature(publicKeyPEM, signature, buffer) {
-    let verifyObject = crypto.createVerify(config.signAlgoName)
+function verifyDigitalSignature(publicECVerificationKey, signature, buffer) {
+    let encodingFormat = require('./index').encodingFormat;
+    let verifyObject = crypto.createVerify(signAlgoName)
     verifyObject.update(buffer)
     verifyObject.end()
-    return verifyObject.verify(publicKeyPEM, signature)
+    return verifyObject.verify(publicECVerificationKey, signature)
 }
 
 module.exports = {
