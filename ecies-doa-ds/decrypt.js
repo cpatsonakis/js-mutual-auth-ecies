@@ -2,18 +2,10 @@
 
 const mycrypto = require('../crypto')
 const common = require('../common')
-
-function checkEncryptedEnvelopeMandatoryProperties(encryptedEnvelope) {
-    const mandatoryProperties = ["to", "r", "ct", "iv", "tag"];
-    mandatoryProperties.forEach((property) => {
-        if (typeof encryptedEnvelope[property] === undefined) {
-            throw new Error("Mandatory property " + property + " is missing from input encrypted envelope");
-        }
-    })
-}
+const crypto = require('crypto')
 
 function checkWrappedMessageMandatoryProperties(wrappedMessage) {
-    const mandatoryProperties = ["from", "msg", "sig"];
+    const mandatoryProperties = ["from_ecsig", "msg", "sig"];
     mandatoryProperties.forEach((property) => {
         if (typeof wrappedMessage[property] === undefined) {
             throw new Error("Mandatory property " + property + " is missing from wrapped message");
@@ -21,13 +13,14 @@ function checkWrappedMessageMandatoryProperties(wrappedMessage) {
     })
 }
 
-module.exports.decrypt = function (receiverPrivateKey, encEnvelope) {
+module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
 
-    checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
+    common.checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
 
     const ephemeralPublicKey = Buffer.from(encEnvelope.r, mycrypto.encodingFormat)
 
-    const sharedSecret = mycrypto.ECEphemeralKeyAgreement.computeSharedSecretFromKeyPair(receiverPrivateKey, ephemeralPublicKey)
+    const ephemeralKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
+    const sharedSecret = ephemeralKeyAgreement.computeSharedSecretFromKeyPair(receiverECDHPrivateKey, ephemeralPublicKey)
 
     const kdfInput = common.computeKDFInput(ephemeralPublicKey, sharedSecret)
     const { symmetricEncryptionKey, macKey } = common.computeSymmetricEncAndMACKeys(kdfInput)
@@ -44,14 +37,19 @@ module.exports.decrypt = function (receiverPrivateKey, encEnvelope) {
 
     let wrappedMessageObject = JSON.parse(mycrypto.symmetricDecrypt(symmetricEncryptionKey, ciphertext, iv).toString())
     checkWrappedMessageMandatoryProperties(wrappedMessageObject)
+    const senderECSigVerPublicKey = crypto.createPublicKey({
+            key: wrappedMessageObject.from_ecsig,
+            format: 'pem',
+            type: 'spki'
+    })
 
-    if (!mycrypto.verifyDigitalSignature(wrappedMessageObject.from,
+    if (!mycrypto.verifyDigitalSignature(senderECSigVerPublicKey,
         Buffer.from(wrappedMessageObject.sig, mycrypto.encodingFormat),
         sharedSecret)) {
         throw new Error("Bad signature")
     }
     return {
-        from: wrappedMessageObject.from,
+        from_ecsig: senderECSigVerPublicKey,
         message: Buffer.from(wrappedMessageObject.msg, mycrypto.encodingFormat)
     };
 }

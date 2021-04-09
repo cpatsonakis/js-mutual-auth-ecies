@@ -35,11 +35,5 @@ module.exports.encrypt = function (senderECDHKeyPair, receiverECDHPublicKey, mes
       ciphertext.length + iv.length + senderDerivedSharedSecret.length)
   )
 
-  return {
-    to_ecdh: receiverECDHPublicKey.toString(mycrypto.encodingFormat),
-    r: ephemeralPublicKey.toString(mycrypto.encodingFormat),
-    ct: ciphertext.toString(mycrypto.encodingFormat),
-    iv: iv.toString(mycrypto.encodingFormat),
-    tag: tag.toString(mycrypto.encodingFormat)
-  }
+  return common.createEncryptedEnvelopeObject(receiverECDHPublicKey, ephemeralPublicKey, ciphertext, iv, tag)
 };

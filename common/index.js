@@ -32,9 +32,20 @@ function checkEncryptedEnvelopeMandatoryProperties(encryptedEnvelope) {
     })
 }
 
+function createEncryptedEnvelopeObject(receiverECDHPublicKey, ephemeralECDHPublicKey, ciphertext, iv, tag) {
+    return {
+        to_ecdh: receiverECDHPublicKey.toString(mycrypto.encodingFormat),
+        r: ephemeralECDHPublicKey.toString(mycrypto.encodingFormat),
+        ct: ciphertext.toString(mycrypto.encodingFormat),
+        iv: iv.toString(mycrypto.encodingFormat),
+        tag: tag.toString(mycrypto.encodingFormat)
+    }
+}
+
 module.exports = {
     computeKDFInput,
     computeSymmetricEncAndMACKeys,
     getDecodedECDHPublicKeyFromEncEnvelope,
-    checkEncryptedEnvelopeMandatoryProperties
+    checkEncryptedEnvelopeMandatoryProperties,
+    createEncryptedEnvelopeObject
 }

@@ -19,12 +19,6 @@ module.exports.encrypt = function(receiverECDHPublicKey, message) {
     const iv = mycrypto.getRandomBytes(mycrypto.params.ivSize)
     const ciphertext = mycrypto.symmetricEncrypt(symmetricEncryptionKey, message, iv)
     const tag = mycrypto.KMAC.computeKMAC(macKey, Buffer.concat([ciphertext, iv], ciphertext.length + iv.length))
-
-    return {
-        to_ecdh: receiverECDHPublicKey.toString(mycrypto.encodingFormat),
-        r: ephemeralPublicKey.toString(mycrypto.encodingFormat),
-        ct: ciphertext.toString(mycrypto.encodingFormat),
-        iv: iv.toString(mycrypto.encodingFormat),
-        tag: tag.toString(mycrypto.encodingFormat)
-    }
+    
+    return common.createEncryptedEnvelopeObject(receiverECDHPublicKey, ephemeralPublicKey, ciphertext, iv, tag)
 }

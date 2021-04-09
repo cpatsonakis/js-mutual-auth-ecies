@@ -1,7 +1,6 @@
-const crypto = require('crypto')
 const ecies = require('../ecies-doa-kmac')
-$$ = {Buffer}; 
-const pskcrypto = require("../pskcrypto");
+const crypto = require('crypto')
+const curveName = require('../crypto').params.curveName;
 
 const NS_PER_SEC = 1e9;
 const msgNo = 500
@@ -15,14 +14,21 @@ for (i = 0; i < msgNo ; ++i) {
 encArray = new Array(msgNo)
 
 
-let keyGenerator = pskcrypto.createKeyPairGenerator();
-let aliceECKeyPair = keyGenerator.generateKeyPair();
-let bobECKeyPair = keyGenerator.generateKeyPair();
+let aliceECDH = crypto.createECDH(curveName)
+let aliceECDHPublicKey = aliceECDH.generateKeys(); 
+let aliceECDHPrivateKey = aliceECDH.getPrivateKey();
+let aliceECDHKeyPair = {
+    publicKey: aliceECDHPublicKey,
+    privateKey: aliceECDHPrivateKey
+}
+let bobECDH = crypto.createECDH(curveName)
+let bobECDHPublicKey = bobECDH.generateKeys(); 
+let bobECDHPrivateKey = bobECDH.getPrivateKey();
 
 // Start with encyptions
 var startTime = process.hrtime();
 for (i = 0 ; i < msgNo ; ++i) {
-    encArray[i] = ecies.encrypt(aliceECKeyPair, bobECKeyPair.publicKey, msgArray[i])
+    encArray[i] = ecies.encrypt(aliceECDHKeyPair, bobECDHPublicKey, msgArray[i])
 }
 var totalHRTime = process.hrtime(startTime);
 var encTimeSecs = (totalHRTime[0]* NS_PER_SEC + totalHRTime[1]) / NS_PER_SEC
@@ -30,7 +36,7 @@ var encTimeSecs = (totalHRTime[0]* NS_PER_SEC + totalHRTime[1]) / NS_PER_SEC
 // Do decryptions now
 startTime = process.hrtime();
 for (i = 0 ; i < msgNo ; ++i) {
-    ecies.decrypt(bobECKeyPair.privateKey, encArray[i])
+    ecies.decrypt(bobECDHPrivateKey, encArray[i])
 }
 totalHRTime = process.hrtime(startTime);
 var decTimeSecs = (totalHRTime[0]* NS_PER_SEC + totalHRTime[1]) / NS_PER_SEC

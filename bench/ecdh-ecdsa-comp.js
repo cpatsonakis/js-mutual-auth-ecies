@@ -1,28 +1,36 @@
 const crypto = require('crypto')
 const mycrypto = require('../crypto')
-
-$$ = {Buffer}; 
-const pskcrypto = require("../pskcrypto");
+const curveName = require('../crypto').params.curveName; //get the default named curve
 
 const NS_PER_SEC = 1e9;
 const iterations = 1000
 
 let message = crypto.pseudoRandomBytes(32)
-let keyGenerator = pskcrypto.createKeyPairGenerator();
-let aliceECKeyPair = keyGenerator.generateKeyPair();
-let bobECKeyPair = keyGenerator.generateKeyPair();
-let aliceECKeyPairPEM = keyGenerator.getPemKeys(aliceECKeyPair.privateKey, aliceECKeyPair.publicKey)
+
+let aliceECDH = crypto.createECDH(curveName)
+aliceECDH.generateKeys()
+let aliceECDHPrivateKey = aliceECDH.getPrivateKey()
+let aliceECSigningKeyPair = crypto.generateKeyPairSync(
+    'ec',
+    {
+        namedCurve: curveName
+    }
+)
+// Generate Bob's ECDH key pair (message receiver)
+let bobECDH = crypto.createECDH(curveName)
+let bobECDHPublicKey = bobECDH.generateKeys(); 
 
 var startTime = process.hrtime();
 for (i = 0 ; i < iterations ; ++i) {
-    mycrypto.ECEphemeralKeyAgreement.computeSharedSecretFromKeyPair(aliceECKeyPair.privateKey, bobECKeyPair.publicKey)
+    let ephemeralKA = new mycrypto.ECEphemeralKeyAgreement()
+    ephemeralKA.computeSharedSecretFromKeyPair(aliceECDHPrivateKey, bobECDHPublicKey)
 }
 var totalHRTime = process.hrtime(startTime);
 var ecdhTimeSecs = (totalHRTime[0]* NS_PER_SEC + totalHRTime[1]) / NS_PER_SEC
 
 var startTime = process.hrtime();
 for (i = 0 ; i < iterations ; ++i) {
-    mycrypto.computeDigitalSignature(aliceECKeyPairPEM.privateKey, message)
+    mycrypto.computeDigitalSignature(aliceECSigningKeyPair.privateKey, message)
 }
 var totalHRTime = process.hrtime(startTime);
 var ecdsaTimeSecs = (totalHRTime[0]* NS_PER_SEC + totalHRTime[1]) / NS_PER_SEC
