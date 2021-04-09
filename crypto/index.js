@@ -8,12 +8,6 @@ const sig = require('./digitalsig')
 const crypto = require('crypto')
 
 module.exports = {
-    params: {
-        symmetricCipherKeySize: config.symmetricCipherKeySize,
-        macKeySize: config.macKeySize,
-        ivSize: config.ivSize,
-        curveName: 'secp256k1'
-    },
     encodingFormat: 'base64',
     timingSafeEqual: crypto.timingSafeEqual,
     getRandomBytes: crypto.randomBytes,
@@ -23,5 +17,11 @@ module.exports = {
     symmetricDecrypt: cipher.symmetricDecrypt,
     KMAC: kmac,
     ECEphemeralKeyAgreement: require('./ecephka'),
-    KDF: kdf.KDF2
+    KDF: kdf.KDF2,
+    params: {
+        symmetricCipherKeySize: config.symmetricCipherKeySize,
+        macKeySize: config.macKeySize,
+        ivSize: config.ivSize,
+        curveName: 'secp256k1'
+    }
 }

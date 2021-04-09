@@ -45,18 +45,20 @@ The `crypto` module provided here exposes the following object (defined in `cryp
 ```js
 {
     encodingFormat: 'base64',
+    timingSafeEqual: crypto.timingSafeEqual,
     getRandomBytes: crypto.randomBytes,
     computeDigitalSignature: sig.computeDigitalSignature,
     verifyDigitalSignature: sig.verifyDigitalSignature,
     symmetricEncrypt: cipher.symmetricEncrypt,
     symmetricDecrypt: cipher.symmetricDecrypt,
     KMAC: kmac,
-    ECEphemeralKeyAgreement: ecephka,
+    ECEphemeralKeyAgreement: require('./ecephka'),
     KDF: kdf.KDF2,
     params: {
         symmetricCipherKeySize: config.symmetricCipherKeySize,
         macKeySize: config.macKeySize,
         ivSize: config.ivSize,
+        curveName: 'secp256k1'
     }
 }
 ```
@@ -66,28 +68,35 @@ In the following, we elaborate on the concrete meaning of all these options.
 - #### **Description:** String value denoting how, e.g., JS Buffers should be converted to string values.
 <br>
 
+>### timingSafeEqual(a, b)
+- #### **Description:** Constant-time equality evaluation algorithm that is suitable for cryptographic applications. We employ the `timingSafeEqual()` function of JavaScript's `crypto` module as the default.
+- #### **a**: The first input value, typically of type Buffer.
+- #### **b**: The second input value, typically of type Buffer.
+- #### **Returns**:  A boolean value that will be set to `true` if `a` is equal to `b`, or `false` otherwise.
+<br>
+
 >### getRandomBytes(size)
 - #### **Description:** A cryptographically strong source of entropy/randomness. We employ the `randomBytes()` function of JavaScript's `crypto` module as the default.
 - #### **size**: The amount of bytes to generate.
 - #### **Returns**:  A randomized Buffer.
 <br>
 
->### computeDigitalSignature(privateKeyPEM, buffer)
+>### computeDigitalSignature(privateECSigningKey, buffer)
 - #### **Description:** Compute an ECDSA digital signature on the input buffer.
-- #### **privateKeyPEM**: The signing private key in PEM format.
-- #### **buffer**: A buffer that contains the data to be signed.
+- #### **privateECSigningKey**: The signing EC private key that will be used to compute the digital signature.
+- #### **buffer**: The data to be signed as a Buffer.
 - #### **Returns**:  The computed ECDSA digital signature.
 <br>
 
->### verifyDigitalSignature(publicKeyPEM, signature, buffer)
+>### verifyDigitalSignature(publicECVerificationKey, signature, buffer)
 - #### **Description:** ECDSA digital signature verification algorithm.
-- #### **publicKeyPEM**: The public signature verification key in PEM format.
-- #### **signature**: The ECDSA digital signature as Buffer.
-- #### **buffer**: A buffer that contains the data based on which the signature was computed.
+- #### **publicECVerificationKey**: The public verification EC key that will be used to verify the input digital signature.
+- #### **signature**: The ECDSA digital signature as a Buffer.
+- #### **buffer**: The data, as a Buffer, against which the signature will be verified.
 - #### **Returns**:  A boolean value indicating whether the input signature is valid (`true`) based on the remaining provided inputs, or not (`false`).
 <br>
 
-We note that functions related to digital signatures, by default, employ the SHA-2-256 hash function (refer to `crypto/config.js` for a complete list of cryptographic parameters)
+We note that functions related to digital signatures, by default, employ the SHA-2-256 hash function (refer to `crypto/private_config.js` for a complete list of cryptographic parameters)
 <br>
 
 >### symmetricEncrypt(key, plaintext, iv)
@@ -122,7 +131,7 @@ The `KMAC` property of the module's configuration is an object that provides two
 - #### **data**: A Buffer that contains the data against which we want to verify the input MAC.
 - #### **Returns**:  A boolean value indicating whether the input MAC (`tag`) is valid (`true`) based on the input data, or not (`false`).
 
-The `ECEphemeralKeyAgreement` property is essentially a class that provides an interface that can be used for ECDH and ECDHE. Internally, the default implementation employs the `ECDH` functionalities of JavaScript's `crypto` module. The following callable functions are provided:
+The `ECEphemeralKeyAgreement` property is a class that provides an interface that can be used for ECDH and ECDHE. Internally, the default implementation employs the `ECDH` functionalities of JavaScript's `crypto` module. The following callable functions are provided:
 <br>
 
 >### generateEphemeralPublicKey()
@@ -130,16 +139,16 @@ The `ECEphemeralKeyAgreement` property is essentially a class that provides an i
 - #### **Returns**:  An ephemeral ECDH public key as a Buffer.
 <br>
 
->### generateSharedSecretForPublicKey(theirECPublicKey)
+>### generateSharedSecretForPublicKey(theirECDHPublicKey)
 - #### **Description:** This function should be called **exactly after** the `generateEphemeralPublicKey()` function (described above) to generate the shared secret that is, subsequently, used to derive the symmetric encryption and KMAC keys.
-- #### **theirECPublicKey**: The EC public key of the receiver as a Buffer.
+- #### **theirECDHPublicKey**: The ECDH public key of the receiver as a Buffer.
 - #### **Returns**:  The shared secret as a Buffer.
 <br>
 
->### computeSharedSecretFromKeyPair(myECPrivateKey, theirECPublicKey)
+>### computeSharedSecretFromKeyPair(myECDHPrivateKey, theirECDHPublicKey)
 - #### **Description:** This function is, typically, invoked by the receiver to compute the shared secret, which will, subsequently, allow her to derive the symmetric encryption and KMAC keys.
-- #### **myECPrivateKey**: The receiver's private key as a Buffer.
-- #### **theirECPublicKey**: The ephemeral public key as a Buffer. This is transmitted to the receiver in plaintext by the sender.
+- #### **myECDHPrivateKey**: The receiver's private ECDH key as a Buffer.
+- #### **theirECDHPublicKey**: The ephemeral ECDH public key as a Buffer.
 - #### **Returns**: The shared secret as a Buffer.
 
 Note that all the aforementioned functions will throw an `Error()` if, for instance, any of the input keys are invalid for the specific curve (by default, we employ the `secp256k1` curve).
@@ -160,8 +169,9 @@ Lastly, the `params` property of the default cryptographic configuration contain
 - `symmetricCipherKeySize`: The byte size of the symmetric cipher's key. Since the default implementation employs `AES-128-CBC`, it's set to 16 bytes (128 bits).
 - `macKeySize`: The byte size of the key that will be input to the KMAC algorithms. Defaults to 16 bytes (128 bits).
 - `ivSize`: The byte size of the symmetric cipher's IV which, for block ciphers, is equal to the size of the cipher's block, i.e., 16 bytes (128 bits) for AES.
+- `curveName`: The named curve, default is `secp256k1`.
 
-The `symmetricCipherKeySize` and `macKeySize` are required by the encryption and decryption algorithms of ECIES implementations to compute the `outputByteSize` of the KDF. The `ivSize` is required by the encryption algorithm of ECIES to produce a sufficiently large and cryptographically random IV that will be used as input to the symmetric encryption algorithm.
+The `symmetricCipherKeySize` and `macKeySize` are required by the encryption and decryption algorithms of ECIES implementations to compute the `outputByteSize` of the KDF. The `ivSize` is required by the encryption algorithm of ECIES to produce a sufficiently large and cryptographically random IV that will be used as input to the symmetric encryption algorithm. The `curveName` is required by the `ECEphemeralKeyAgreement` class and can be modified by clients of this module. **We stress that if client code modifies the value of the named curve, existing instances of the `ECEphemeralKeyAgreement` class should be invalidated and new ones should be created in their place where needed.**
 
 # ECIES-DOA-DS
 In this version of ECIES, the main idea is that we use a digital signature to authenticate the sender of the message to the receiver. However, we really don't want a man-in-the-middle (MITM) to be able to infer the public key of the sender. Indeed, we only want the receiver of the message to be able to infer the public key of the sender. A high-level description of how we achieve this is as follows. The ECIES plaintext is comprised by three parts: 1) the sender's public key, 2) the actual message and, 3) a digital signature on the ECDHE secret. Since ECIES is based on ephemeral shared secrets and since we use freshly-generated IVs for each transmitted message, it (hopefully) is obvious that even if the same sender (public key) sends the same message to the same receiver, the resulting ciphertext will always have a different byte representation (in the honest sender setting of course). Note also that ECDSA signatures are also randomized, which is another reason for which the resulting ciphertext will be different. In addition, since the ECDHE secret can only be computed by the receiver and is unique for each message, only the receiver can decrypt the ciphertext. Furthermore, since the sender's public key and signature is "hidden" inside the ECIES ciphertext, it is never exposed in transit. Hence, even if we assume a MITM that has a list of all the public keys in the world, the sender's identity is concealed. 
