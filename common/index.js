@@ -3,12 +3,12 @@
 const mycrypto = require('../crypto')
 
 // Prevent benign malleability
-module.exports.computeKDFInput = function(ephemeralPublicKey, sharedSecret) {
+function computeKDFInput(ephemeralPublicKey, sharedSecret) {
     return Buffer.concat([ephemeralPublicKey, sharedSecret],
         ephemeralPublicKey.length + sharedSecret.length)
 }
 
-module.exports.computeSymmetricEncAndMACKeys = function(kdfInput) {
+function computeSymmetricEncAndMACKeys(kdfInput) {
     let kdfKey = mycrypto.KDF(kdfInput, mycrypto.params.symmetricCipherKeySize + mycrypto.params.macKeySize)
     const symmetricEncryptionKey = kdfKey.slice(0, mycrypto.params.symmetricCipherKeySize);
     const macKey = kdfKey.slice(mycrypto.params.symmetricCipherKeySize)
@@ -16,4 +16,25 @@ module.exports.computeSymmetricEncAndMACKeys = function(kdfInput) {
         symmetricEncryptionKey,
         macKey
     };
+}
+
+function getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope) {
+    checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
+    return Buffer.from(encEnvelope.to_ecdh, mycrypto.encodingFormat)
+}
+
+function checkEncryptedEnvelopeMandatoryProperties(encryptedEnvelope) {
+    const mandatoryProperties = ["to_ecdh", "r", "ct", "iv", "tag"];
+    mandatoryProperties.forEach((property) => {
+        if (typeof encryptedEnvelope[property] === undefined) {
+            throw new Error("Mandatory property " + property + " is missing from input encrypted envelope");
+        }
+    })
+}
+
+module.exports = {
+    computeKDFInput,
+    computeSymmetricEncAndMACKeys,
+    getDecodedECDHPublicKeyFromEncEnvelope,
+    checkEncryptedEnvelopeMandatoryProperties
 }

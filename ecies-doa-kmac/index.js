@@ -3,5 +3,5 @@
 module.exports = {
   encrypt: require('./encrypt').encrypt,
   decrypt: require('./decrypt').decrypt,
-  getDecodedECDHPublicKeyFromEncEnvelope: require('./utils').getDecodedECDHPublicKeyFromEncEnvelope
+  getDecodedECDHPublicKeyFromEncEnvelope: require('../common').getDecodedECDHPublicKeyFromEncEnvelope
 }

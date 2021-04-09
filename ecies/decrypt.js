@@ -2,12 +2,11 @@
 
 const mycrypto = require('../crypto')
 const common = require('../common')
-const utils = require('./utils')
 
 
 module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
 
-    utils.checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
+    common.checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
 
     const ephemeralPublicKey = Buffer.from(encEnvelope.r, mycrypto.encodingFormat)
 
@@ -22,7 +21,6 @@ module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
     const iv = Buffer.from(encEnvelope.iv, mycrypto.encodingFormat)
 
     mycrypto.KMAC.verifyKMAC(tag, macKey, Buffer.concat([ciphertext, iv], ciphertext.length + iv.length))
-
 
     return mycrypto.symmetricDecrypt(symmetricEncryptionKey, ciphertext, iv)
 }

@@ -2,7 +2,6 @@
 
 const mycrypto = require('../crypto');
 const common = require('../common')
-const utils = require('./utils')
 
 function checkWrappedMessageMandatoryProperties(wrappedMessage) {
     const mandatoryProperties = ["from_ecdh", "msg"];
@@ -14,7 +13,7 @@ function checkWrappedMessageMandatoryProperties(wrappedMessage) {
 }
 
 module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
-    utils.checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
+    common.checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
 
     const ephemeralPublicKey = Buffer.from(encEnvelope.r, mycrypto.encodingFormat)
 
