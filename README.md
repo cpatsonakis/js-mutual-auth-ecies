@@ -263,39 +263,56 @@ for `msgNo=500` and `msgSize=100`, which was executed on a fairly resource-const
 This is an implementation of the standard ECIES hybrid authenticated encryption scheme. We refer the interested reader to the resources that we have already provided in previous (introductory) sections of this documentation for more information.
 
 ## Quick Start Guide
-If you are interested in just using this version of the implementation, without digging into the nitty gritty details, in the following, we provide a simple usage example, in which some entity (which is anonymous) wants to send a message to `Bob`:
+If you are interested in just using this version of the implementation, without digging into the nitty gritty details, in the following, we provide a simple usage example, in which some entity (which is always anonymous in this version of the implementation) wants to send a message to `Bob`:
 
 ```js
-const ecies = require('./ecies') //import the ECIES module
+const ecies = require('./ecies'); //import the ECIES module
 const assert = require('assert').strict;
-// The next two lines are required to properly import and initialize the pskcrypto module
-$$ = {Buffer}; 
-const pskcrypto = require("./pskcrypto");
+const crypto = require('crypto'); //import the default crypto module so that we can generate keys
+const curveName = require('./crypto').params.curveName; //get the default named curve
+
 // The message we want to transmit, as a Buffer, which is what the encrypt() function expects
 const plainTextMessage = Buffer.from('hello world');
-let keyGenerator = pskcrypto.createKeyPairGenerator(); // Object that allows us to generate EC key pairs
-let bobECKeyPair = keyGenerator.generateKeyPair(); // Generate Bob's EC key pair (message receiver)
+
+// Generate Bob's ECDH key pair (message receiver)
+let bobECDH = crypto.createECDH(curveName)
+let bobECDHPublicKey = bobECDH.generateKeys(); 
+let bobECDHPrivateKey = bobECDH.getPrivateKey();
 
 // Encrypt the message. The function returns a JSON object that you can send over any communication
 // channel you want (e.g., HTTP, WS).
-let encEnvelope = ecies.encrypt(bobECKeyPair.publicKey, plainTextMessage)
+let encEnvelope = ecies.encrypt(bobECDHPublicKey, plainTextMessage)
+console.log("Encrypted Envelope:")
+console.log(encEnvelope)
 
-// .... Message is transmitted to Bob somehow
-
+// ... Message is somehow transmitted to Bob
+// Bob receives the message
+let myECDHPublicKey = ecies.getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope)
+// ... Bob searches his key database for the corresponding ECDH private key
+assert(Buffer.compare(myECDHPublicKey, bobECDHPublicKey) === 0, "PUBLIC KEYS ARE NOT EQUAL")
 // Bob calls the decryption function and gets back an object.
-let decMessage = ecies.decrypt(bobECKeyPair.privateKey, encEnvelope)
+let decMessage = ecies.decrypt(bobECDHPrivateKey, encEnvelope)
+assert(Buffer.compare(decMessage, plainTextMessage) === 0, "MESSAGES ARE NOT EQUAL")
 // Here is the decrypted message!
 console.log('Decrypted message is: ' + decMessage);
 ```
-Notice that, contrary to other implementations that are provided in this repository that provide for data origin authentication, the signature of the `encrypt()` function is different. Indeed, since the sender of the message in this construction is anonymous and since ECIES is based on ephemeral secrets, the sender's key pair is stripped from the argument list of `encrypt()`. This code sample is based on the one provided in the `example-ecies.js` file.
+This code sample is provided in the `example-ecies.js` file.
 
 ## API Specification
 
-In this section, we document the main functions that are exposed by this module, i.e., `encrypt()` and `decrypt()` (assuming the default configuration options that were previously discussed), which are defined as follows:
+In this section, we document the main functions that are exposed by this module, assuming the default configuration options that were previously discussed, which are defined as follows:
 <br>
 
->### encrypt(receiverECPublicKey, message)
-- #### **receiverECPublicKey**: The EC public key of the receiver as a Buffer. **Note** that this is not in a standardized format, i.e., DER or PEM. In short, this key should be in the same form as the ones returned by JavaScript's `crypto.ecdh.generateKeys()` method. Refer to the [NotesJSCrypto.md](NotesJSCrypto.md) file for more information.
+>### getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope)
+- #### **Description:** This is a helper function that is intended to be used by the receiver so that he can easily get, on input an encrypted envelope object (described below), the public ECDH key used by the sender of the message.
+- #### **encEnvelope**: An encrypted envelope object (described below).
+- #### **Returns**:  The decoded ECDH public key as a Buffer.
+
+The receiver of an encrypted envelope needs to infer which specific ECDH private key she should input to the decryption function (described later on in this section). To achieve this, the receiver is, typically, expected to first invoke this function and, subsequently, query w/e database she uses for key storage. Clearly, if the corresponding key cannot be located, the envelope should be discarded as the decryption function will throw an error.
+
+>### encrypt(receiverECDHPublicKey, message)
+- #### **Description:** The encryption function of this ECIES implementation.
+- #### **receiverECDHPublicKey**: The ECDH public key of the receiver as is returned by JavaScript's `crypto.ecdh.generateKeys()` method.
 - #### **message**: The message as a Buffer that we want to encrypt and send across the wire.
 - #### **Returns**:  An encrypted envelope object (described below).
 
@@ -303,24 +320,24 @@ This function should **always** be invoked in a `try-catch` block as it can thro
 
 ```json
 {
-  "to": "BK+YzYXP/hwcvwbhro2NTD+G4/WxJJhEyZ+SgixlaROUfeEzm6k4cLCCiJ7poJTGtNspOLQ8memtEVd+JxHuszA=",
-  "r": "BJsw9fXUO/QGupbBBvYcw5RTDjWa5rYvH0B8MVsPBCezyoU2Nxc4Fv15F2A7UXy+DNu3q1Xu90N7QjWwoL24Rfk=",
-  "ct": "E5iczqVAAd3Bx/dQKBZO2g==",
-  "iv": "obEHTk9sNAEpekL0UF/Pzw==",
-  "tag": "7fBVH2xgVWwqPObVA/qUIRqbl8JJvJ8Pb10m+/0n620="
+  "to_ecdh": "BD88tJ3mYhEUrWrmMw1dDIdgQrZ5TuilX4n4xKZ9JKpgYRpWl1IUMXW1V02+1h+3W9Qt5mk/UIxBY778zSXc5dE=",
+  "r": "BGSEGwR5SwTIAP/5xJWQ5VC0WAXonO6rdSP0BMyUZFgLZ3QyeXQv9aLamlmfS7XiPGKSFWEGEVAsYBh7g+dbefE=",
+  "ct": "taNKCNJ4W83MQW/O7uncBw==",
+  "iv": "u3PvRck4BwLj2zXqLoDB7w==",
+  "tag": "RH+dXUTYfGDTj+sctNJQjbVi9cXRpXE62elWPpB4iAA="
 }
 ```
 A descriptive overview of the fields of an encrypted envelope object (assuming the default configuration options) is as follows:
-1. `to`: The receiver's encoded public key.
+1. `to_ecdh`: The receiver's ECDH public key in encoded form.
 1. `r`: The encoded ECDHE public key.
 1. `ct`: The encoded ciphertext.
 1. `iv`: The initialization vector of the symmetric cipher in encoded form.
 1. `tag`: The output of the KMAC function in encoded form.
+<br>
 
-The receiver of an encrypted envelope needs to infer which specific EC private key she should input to the decryption function. To achieve this, the receiver is, typically, expected to decode the `to` field of the received envelope and query w/e database she uses for key storage. Clearly, if the corresponding key cannot be located, the envelope should be discarded as the decryption function will throw an error. The signature of the decryption function is as follows:
-
->### decrypt(receiverPrivateKey, encEnvelope)
-- #### **receiverPrivateKey**: The private key that corresponds to the one encoded in the `to` field of the input encrypted envelope. Regarding the format of this key, we refer the reader to our notes on the `receiverECPublicKey` of the `encrypt()` function.
+>### decrypt(receiverECDHPrivateKey, encEnvelope)
+- #### **Description:** The decryption function of this ECIES implementation.
+- #### **receiverECDHPrivateKey**: The private key that corresponds to the one encoded in the `to_ecdh` field of the input encrypted envelope.
 - #### **encEnvelope**: An encrypted envelope object as is output by the `encrypt()` function.
 - #### **Returns**:  The decrypted message as a Buffer.
 

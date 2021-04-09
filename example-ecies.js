@@ -1,6 +1,6 @@
 const ecies = require('./ecies'); //import the ECIES module
 const assert = require('assert').strict;
-const crypto = require('crypto'); //import the default crypto module so that we can generate keys etc.
+const crypto = require('crypto'); //import the default crypto module so that we can generate keys
 const curveName = require('./crypto').params.curveName; //get the default named curve
 
 // The message we want to transmit, as a Buffer, which is what the encrypt() function expects
