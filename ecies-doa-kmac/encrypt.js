@@ -3,25 +3,27 @@
 const mycrypto = require('../crypto');
 const common = require('../common')
 
-function senderMessageWrapAndSerialization(senderPublicKey, message) {
+function senderMessageWrapAndSerialization(senderECDHPublicKey, message) {
   return JSON.stringify({
-    from: senderPublicKey.toString(mycrypto.encodingFormat),
+    from_ecdh: senderECDHPublicKey.toString(mycrypto.encodingFormat),
     msg: message
   });
 }
 
-module.exports.encrypt = function (senderKeyPair, receiverPublicKey, message) {
+module.exports.encrypt = function (senderECDHKeyPair, receiverECDHPublicKey, message) {
 
   if (!Buffer.isBuffer(message)) {
     throw new Error('Input message has to be of type Buffer')
-}
+  }
 
-  const senderDerivedSharedSecret = mycrypto.ECEphemeralKeyAgreement.computeSharedSecretFromKeyPair(senderKeyPair.privateKey, receiverPublicKey)
+  const senderKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
+  const senderDerivedSharedSecret = senderKeyAgreement.computeSharedSecretFromKeyPair(senderECDHKeyPair.privateKey, receiverECDHPublicKey)
 
-  const senderAuthMsgEnvelopeSerialized = senderMessageWrapAndSerialization(senderKeyPair.publicKey, message);
+  const senderAuthMsgEnvelopeSerialized = senderMessageWrapAndSerialization(senderECDHKeyPair.publicKey, message);
 
-  const ephemeralPublicKey = mycrypto.ECEphemeralKeyAgreement.generateEphemeralPublicKey()
-  const ephemeralSharedSecret = mycrypto.ECEphemeralKeyAgreement.generateSharedSecretForPublicKey(receiverPublicKey)
+  const ephemeralKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
+  const ephemeralPublicKey = ephemeralKeyAgreement.generateEphemeralPublicKey()
+  const ephemeralSharedSecret = ephemeralKeyAgreement.generateSharedSecretForPublicKey(receiverECDHPublicKey)
 
   const kdfInput = common.computeKDFInput(ephemeralPublicKey, ephemeralSharedSecret)
   const { symmetricEncryptionKey, macKey } = common.computeSymmetricEncAndMACKeys(kdfInput)
@@ -34,7 +36,7 @@ module.exports.encrypt = function (senderKeyPair, receiverPublicKey, message) {
   )
 
   return {
-    to: receiverPublicKey.toString(mycrypto.encodingFormat),
+    to_ecdh: receiverECDHPublicKey.toString(mycrypto.encodingFormat),
     r: ephemeralPublicKey.toString(mycrypto.encodingFormat),
     ct: ciphertext.toString(mycrypto.encodingFormat),
     iv: iv.toString(mycrypto.encodingFormat),
