@@ -1,13 +1,12 @@
 const crypto = require('crypto')
 const mycrypto = require('../crypto')
-const curveName = require('../crypto').params.curveName; //get the default named curve
 
 const NS_PER_SEC = 1e9;
 const iterations = 1000
 
 let message = crypto.pseudoRandomBytes(32)
 
-let aliceECDH = crypto.createECDH(curveName)
+let aliceECDH = crypto.createECDH(mycrypto.params.curveName)
 aliceECDH.generateKeys()
 let aliceECDHPrivateKey = aliceECDH.getPrivateKey()
 let aliceECSigningKeyPair = crypto.generateKeyPairSync(
@@ -17,7 +16,7 @@ let aliceECSigningKeyPair = crypto.generateKeyPairSync(
     }
 )
 // Generate Bob's ECDH key pair (message receiver)
-let bobECDH = crypto.createECDH(curveName)
+let bobECDH = crypto.createECDH(mycrypto.params.curveName)
 let bobECDHPublicKey = bobECDH.generateKeys(); 
 
 var startTime = process.hrtime();

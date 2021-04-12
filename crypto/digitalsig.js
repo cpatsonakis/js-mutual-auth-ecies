@@ -13,7 +13,6 @@ function computeDigitalSignature(privateECSigningKey, buffer) {
 }
 
 function verifyDigitalSignature(publicECVerificationKey, signature, buffer) {
-    let encodingFormat = require('./index').encodingFormat;
     let verifyObject = crypto.createVerify(config.signAlgoName)
     verifyObject.update(buffer)
     verifyObject.end()

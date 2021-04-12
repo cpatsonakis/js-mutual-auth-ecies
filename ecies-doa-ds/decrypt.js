@@ -29,18 +29,20 @@ module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
     const tag = Buffer.from(encEnvelope.tag, mycrypto.encodingFormat)
     const iv = Buffer.from(encEnvelope.iv, mycrypto.encodingFormat)
 
-    if(!mycrypto.KMAC.verifyKMAC(tag,
+    if (!mycrypto.KMAC.verifyKMAC(tag,
         macKey,
-        Buffer.concat([ciphertext, iv], ciphertext.length + iv.length))) {
+        Buffer.concat([ciphertext, iv],
+            ciphertext.length + iv.length))
+    ) {
         throw new Error("Bad MAC")
     }
 
     let wrappedMessageObject = JSON.parse(mycrypto.symmetricDecrypt(symmetricEncryptionKey, ciphertext, iv).toString())
     checkWrappedMessageMandatoryProperties(wrappedMessageObject)
     const senderECSigVerPublicKey = crypto.createPublicKey({
-            key: wrappedMessageObject.from_ecsig,
-            format: 'pem',
-            type: 'spki'
+        key: wrappedMessageObject.from_ecsig,
+        format: 'pem',
+        type: 'spki'
     })
 
     if (!mycrypto.verifyDigitalSignature(senderECSigVerPublicKey,

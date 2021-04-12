@@ -14,40 +14,11 @@ function senderMessageWrapAndSerialization(senderECSigVerPublicKey, message, sig
     });
 }
 
-function checkECSigningKeyPairTypeInput(senderECSigningKeyPair) {
-    if (typeof senderECSigningKeyPair.publicKey === undefined) {
-        throw new Error("Mandatory property publicKey is missing from input EC signing key pair object");
-    }
-    if (typeof senderECSigningKeyPair.publicKey.type === undefined ||
-        senderECSigningKeyPair.publicKey.type !== 'public') {
-        throw new Error("Public key is not of type public")
-    }
-    if (typeof senderECSigningKeyPair.publicKey.asymmetricKeyType === undefined ||
-        senderECSigningKeyPair.publicKey.asymmetricKeyType !== 'ec') {
-        throw new Error("Invalid asymmetric type for EC public key")
-    }
-    if (typeof senderECSigningKeyPair.privateKey === undefined) {
-        throw new Error("Mandatory property privateKey is missing from input EC signing key pair object");
-    }
-    if (typeof senderECSigningKeyPair.privateKey.type === undefined ||
-        senderECSigningKeyPair.privateKey.type !== 'private') {
-        throw new Error("Private key is not of type public")
-    }
-    if (typeof senderECSigningKeyPair.privateKey.asymmetricKeyType === undefined ||
-        senderECSigningKeyPair.publicKey.asymmetricKeyType !== 'ec') {
-        throw new Error("Invalid asymmetric type for EC private key")
-    }
-    
-
-}
-
 module.exports.encrypt = function (senderECSigningKeyPair, receiverECDHPublicKey, message) {
 
     if (!Buffer.isBuffer(message)) {
         throw new Error('Input message has to be of type Buffer')
     }
-
-    checkECSigningKeyPairTypeInput(senderECSigningKeyPair)
 
     const ephemeralKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
     const ephemeralPublicKey = ephemeralKeyAgreement.generateEphemeralPublicKey()
@@ -61,7 +32,10 @@ module.exports.encrypt = function (senderECSigningKeyPair, receiverECDHPublicKey
 
     const iv = mycrypto.getRandomBytes(mycrypto.params.ivSize)
     const ciphertext = mycrypto.symmetricEncrypt(symmetricEncryptionKey, senderAuthMsgEnvelopeSerialized, iv)
-    const tag = mycrypto.KMAC.computeKMAC(macKey, Buffer.concat([ciphertext, iv], ciphertext.length + iv.length))
+    const tag = mycrypto.KMAC.computeKMAC(macKey,
+        Buffer.concat([ciphertext, iv],
+            ciphertext.length + iv.length)
+    )
 
     return common.createEncryptedEnvelopeObject(receiverECDHPublicKey, ephemeralPublicKey, ciphertext, iv, tag)
 };

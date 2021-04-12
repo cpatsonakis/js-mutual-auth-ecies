@@ -3,7 +3,7 @@
 const mycrypto = require('../crypto')
 const common = require('../common')
 
-module.exports.encrypt = function(receiverECDHPublicKey, message) {
+module.exports.encrypt = function (receiverECDHPublicKey, message) {
 
     if (!Buffer.isBuffer(message)) {
         throw new Error('Input message has to be of type Buffer')
@@ -18,7 +18,10 @@ module.exports.encrypt = function(receiverECDHPublicKey, message) {
 
     const iv = mycrypto.getRandomBytes(mycrypto.params.ivSize)
     const ciphertext = mycrypto.symmetricEncrypt(symmetricEncryptionKey, message, iv)
-    const tag = mycrypto.KMAC.computeKMAC(macKey, Buffer.concat([ciphertext, iv], ciphertext.length + iv.length))
-    
+    const tag = mycrypto.KMAC.computeKMAC(macKey,
+        Buffer.concat([ciphertext, iv],
+            ciphertext.length + iv.length)
+    )
+
     return common.createEncryptedEnvelopeObject(receiverECDHPublicKey, ephemeralPublicKey, ciphertext, iv, tag)
 }

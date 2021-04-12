@@ -1,16 +1,16 @@
 # js-mutual-auth-ecies
 The Diffie-Hellman Integrated Encryption Scheme ([DHIES](http://web.cs.ucdavis.edu/~rogaway/papers/dhies.pdf)), or the Elliptic Curve Integrated Encryption Scheme ([ECIES](https://en.wikipedia.org/wiki/Integrated_Encryption_Scheme)), as it is commonly referred to due to its most prominent instantiation over elliptic curve-based groups, is a construction of a hybrid authenticated encryption scheme that has a wide array of attractive security properties. Examples include, semantic security against CCA and CCP enabled adversaries in the **standard model**. Moreover, ECIES has several features that are important from a practical perspective, i.e., that are relevant to implementers/developers, such as efficiency, flexibility in terms of the employed elliptic curve, the symmetric encryption and KMAC scheme, the hash function, as well as, an arbitrary message space.
 
-In this repository, we provide several different JavaScript implementations of ECIES. A subset of the implementations have **the added property that the message sender authenticates herself to the receiver (and only to the receiver). We stress that this is not the case in the standard ECIES scheme.** Hence, this repo was named `js-mutual-auth-ecies`. Although, in retrospect, we regretted the name choice as it is slightly misleading.
+In this repository, we provide several different NodeJS implementations of ECIES. A subset of the implementations have **the added property that the message sender authenticates herself to the receiver (and only to the receiver). We stress that this is not the case in the standard ECIES scheme.** Hence, this repo was named `js-mutual-auth-ecies`. Although, in retrospect, we regretted the name choice as it is slightly misleading.
 
 # Disclaimer & Dependencies
-The code of this repository was developed with the intent of being integrated with the [OpenDSU](https://github.com/PrivateSky/OpenDSU) codebase, as part of the [PharmaLedger H2020](https://pharmaledger.eu/) project's efforts. To ensure compatibility with the OpenDSU codebase, the implementations provided here depend on the `pskcrypto` module of OpenDSU which, for your convenience dear sir/madam/wherever-in-the-gender-spectrum-you-are, is provided here! We stress, however, that the involvement of the `pskcrypto` module relates **only** to key generation and converting keys to PEM format. Therefore, conceptually, one can easily strip `pskcrypto` entirely from the code base provided here with minimal effort. Lastly, for a more elaborate description of the issues and our (unfortunate) experiences with JavaScript's `crypto` module, we refer the interested reader to the [NotesJSCrypto.md](NotesJSCrypto.md) file.
+The code of this repository was developed with the intent of being integrated in the [OpenDSU](https://github.com/PrivateSky/OpenDSU) codebase, as part of the [PharmaLedger H2020](https://pharmaledger.eu/) project's efforts. Initial releases of this repository depended on the [pskcrypto](https://github.com/PrivateSky/pskcrypto) module to ensure compatibility with the OpenDSU codebase. This dependency was, later on, dropped to constitute the code base provided here as self-contained as possible. The implementations in this repository employ, in the background, NodeJS's `crypto` module, which is essentially a wrapper of the OpenSSL C-based library implementation.
 
 # Overview
-A subset of the implementations include the acronym *DOA* in their name, which stands for data origin authentication. Put simply, these implementations also authenticate the sender of the message to the receiver (and only to the receiver). In the following, we provide a succinct overview of the ECIES implementations that are provided in this repository:
+A subset of the implementations include the acronym *DOA* in their name, which stands for data origin authentication. Put simply, these implementations also authenticate the sender of the message to the receiver (and only to the receiver). In the following, we provide a succinct overview of the ECIES implementations that are included in this repository:
 
-- [ECIES-DOA-DS](#ecies-doa-ds): This acronym stands for ECIES data origin authentication with digital signatures (DS), i.e., the sender authenticates herself **only** to the receiver by digitally signing the shared secret.
-- [ECIES-DOA-KMAC](#ecies-doa-kmac): This acronym stands for ECIES data origin authentication with keyed message authentication code. In this implementation, the sender uses her private key and the receivers public key to derive a shared ECDH secret. More details in the respective section. **(PENDING SECURITY VALIDATION, DO NOT USE RIGHT NOW)**
+- [ECIES-DOA-DS](#ecies-doa-ds): This acronym stands for ECIES data origin authentication with digital signatures (DS), i.e., the sender authenticates herself **only** to the receiver by digitally signing the ephemeral shared secret.
+- [ECIES-DOA-KMAC](#ecies-doa-kmac): This acronym stands for ECIES data origin authentication with keyed message authentication code. In this implementation, the sender uses her private key and the receiver's public key to derive a shared ECDH secret. More details are provided in the respective section. **(PENDING SECURITY VALIDATION, DO NOT USE RIGHT NOW)**
 - [ECIES](#ecies): This is a standard ECIES implementation, which provides for authenticated encryption. Note that in this implementation, the message sender is anonymous.
 
 At this point, one may wonder: Why did we develop multiple implementations that essentially provide the same properties, e.g., `ECIES-DOA-DS` and `ECIES-DOA-KMAC`? Well, the short answer is: for science! We find it interesting to explore multiple avenues in reaching the same goal. On a more practical note, it is useful, in some cases, to have tangible means of assessing the actual performance of different design choices!
@@ -26,7 +26,7 @@ As was previously noted, ECIES provides a wide range of flexibility in terms of 
 1. Symmetric cipher
 1. Keyed message authentication code (KMAC)
 
-We wish to preserve ECIES's instantiation flexibility across all implementations provided here. To this end, we expose to developers an object that allows them to configure the respective module according to their (use case) requirements. Moreover, this allows us to abstract the dependency on JavaScript's `crypto` module. Put simply, if you have another cryptographic library that you are more comfortable with, or even prefer using, with a little bit of coding, you will be able to use it. Lastly, we do not expect that all developers that will use the code provided here will have the ability to reason about the security of their choices. Hence, we developed a *default* `crypto` module (`crypto/` directory), which is shared across all implementations and was developed by having security as the first priority. The defaults for all the aforementioned abstract functions were chosen based on the seminal work that introduced [DHIES](http://web.cs.ucdavis.edu/~rogaway/papers/dhies.pdf), standards' specifications (ANSI X9.63, IEEE 1363a, ISO/IEC 18033-2 and SECG SEC1), as well as, the implementation guidelines of [Martinez et al.](https://www.tic.itefi.csic.es/CIBERDINE/Documetos/Cryptologia%20-%20Security%20and%20practical%20considerations%20when%20implementing%20ECIES%20-%20v1.0.pdf)
+We wish to preserve ECIES's instantiation flexibility across all implementations provided here. To this end, we expose to developers an object that allows them to configure the respective module according to their (use case) requirements. Moreover, this allows us to abstract the dependency on NodeJS's `crypto` module. Put simply, if you have another cryptographic library that you are more comfortable with, or even prefer using, with a little bit of coding, you will be able to use it. Lastly, we do not expect that all developers that will use the code provided here will have the ability to reason about the security of their choices. Hence, we developed a *default* `crypto` module (`crypto/` directory), which is shared across all implementations and was developed by having security as the first priority. The defaults for all the aforementioned abstract functions were chosen based on the seminal work that introduced [DHIES](http://web.cs.ucdavis.edu/~rogaway/papers/dhies.pdf), standards' specifications (ANSI X9.63, IEEE 1363a, ISO/IEC 18033-2 and SECG SEC1), as well as, the implementation guidelines of [Martinez et al.](https://www.tic.itefi.csic.es/CIBERDINE/Documetos/Cryptologia%20-%20Security%20and%20practical%20considerations%20when%20implementing%20ECIES%20-%20v1.0.pdf)
 
 In the following, we document and briefly discuss the default instantiation options of the `crypto` module provided here:
 1. Key agreement (KA): Elliptic Curve Diffie-Hellman Ephemeral (ECDHE). Although, we note that the implementation provided here allows for plain ECDH as well.
@@ -35,9 +35,15 @@ In the following, we document and briefly discuss the default instantiation opti
 1. Symmetric cipher: `AES-128-CBC`. 
 1. Keyed message authentication code (KMAC): HMAC construction based on SHA-2-256 and a 128-bit key.
 
-An astute reader (or evidently anyone that reads this statement) may ponder as to why we did not employ a standard authenticated encryption scheme, such as `AES-128-GCM`. It is true that we could have employed, e.g., the `setAAD()` and `setAuthTag()` functions during encryption and decryption, respectively. From a conceptual point of view, we wanted to separate the process of symmetric encryption from that of MAC computation to provide for more flexibility. In addition, it is unclear how the aforementioned API computes the MAC. Are developers supposed to supply the KMAC key in the `setAAD()` function? The documentation does not elaborate on such important details. The only option to infer such important information would be to go through the code base of JavaScript's default `crypto` module, or even worse the underlying OpenSSL C-based library. We obviously did not and will not do that. Naturally, we acknowledge that our choice might incur a slight performance penalty, however, recall that security is our number one priority.
+An astute reader (or evidently anyone that reads this statement) may ponder as to why we did not employ a standard authenticated encryption scheme, such as `AES-128-GCM`. It is true that we could have employed, e.g., the `setAAD()` and `setAuthTag()` functions during encryption and decryption, respectively. From a conceptual point of view, we wanted to separate the process of symmetric encryption from that of MAC computation to provide for more flexibility. In addition, it is unclear how the aforementioned API of NodeJS's `crypto` module computes the MAC. Are developers supposed to supply the KMAC key in the `setAAD()` function? The documentation does not elaborate on such important details. The only option to infer such important information would be to go through the code base of NodeJS's default `crypto` module, or even worse, the underlying OpenSSL C-based library implementation. We obviously did not and will not do that. Naturally, we acknowledge that our choice might incur a slight performance penalty, however, recall that security is our number one priority.
 
-That being said, it is important at this point to briefly discuss an important issue, i.e., the importance of **using different keys for encryption and KMAC computation**. We have witnessed several cases where implementations employ the same key for both of these processes. We stress, in short, that use of a single key `k` may allow an attacker to modify the ciphertext `ct` -mind you, without even having knowledge of the plaintext- to `ct'`, such that the KMAC will still be valid at the receiver's end. This does not apply to all symmetric cipher suites, however, it is considered best practice among the cryptographic community to use separate keys, or even more generally speaking, that implementers should **not** use a key (or key pair) for multiple purposes.
+## Note on Cryptographic Keys
+
+As a starting point, we begin by stressing the importance of **using different keys for encryption and KMAC computation**. We have witnessed several cases where readily available implementations on the web employ the same key for both of these processes. We stress, in short, that use of a single key `k` may allow an attacker to modify the ciphertext `ct` -mind you, without even having knowledge of the plaintext- to `ct'`, such that the KMAC will still be valid at the receiver's end. This does not apply to all symmetric cipher suites, however, it is considered best practice among the cryptographic community to use separate keys, or even more generally speaking, that implementers should **not** use a key (or key pair) for multiple purposes.
+
+Overall, and as was hinted in the previous section, the code base provided here employs keys for several distinct functionalities, i.e., symmetric encryption, KMACs, key agreement and digital signatures. Hence, it is relevant for, e.g., developers that wish to use the code base provided here, to briefly discuss the topic of how all these different keys are (expected to be) encoded, i.e., their format. Since the default implementations of the cryptographic algorithms employ NodeJS's `crypto` module in the background, the points discussed below will be based on this fact. Symmetric and KMAC keys are expected to be encoded as Buffer types. For KA, and since it is based on ECDH, keys are expected to comply to the format that is output by the `ECDH` class which, in short, are of type Buffer and **do not comply** to standardized key encodings, e.g., DER. Regarding EC key pairs for computing and verifying digital signatures, we suggest the use of the `KeyObject` type. An alternative is to use PEM encoded key strings.
+
+We conclude this section by stressing that we have noticed a tremendous inconsistency in regards to how keys are handled and formatted by NodeJS's `crypto` module. For the interested reader, we have documented our (unfortunate) experiences with this module in the [NotesJSCrypto.md](NotesJSCrypto.md) file.
 
 ## Configuration Options
 
@@ -65,38 +71,38 @@ The `crypto` module provided here exposes the following object (defined in `cryp
 In the following, we elaborate on the concrete meaning of all these options.
 
 >### encodingFormat 
-- #### **Description:** String value denoting how, e.g., JS Buffers should be converted to string values.
+- #### **Description:** String value denoting how, e.g., Buffers should be converted to string values.
 <br>
 
 >### timingSafeEqual(a, b)
-- #### **Description:** Constant-time equality evaluation algorithm that is suitable for cryptographic applications. We employ the `timingSafeEqual()` function of JavaScript's `crypto` module as the default.
+- #### **Description:** Constant-time equality evaluation algorithm that is suitable for cryptographic applications. We employ the `timingSafeEqual()` function of NodeJS's `crypto` module as the default.
 - #### **a**: The first input value, typically of type Buffer.
 - #### **b**: The second input value, typically of type Buffer.
 - #### **Returns**:  A boolean value that will be set to `true` if `a` is equal to `b`, or `false` otherwise.
 <br>
 
 >### getRandomBytes(size)
-- #### **Description:** A cryptographically strong source of entropy/randomness. We employ the `randomBytes()` function of JavaScript's `crypto` module as the default.
+- #### **Description:** A cryptographically strong source of entropy/randomness. We employ the `randomBytes()` function of NodeJS's `crypto` module as the default.
 - #### **size**: The amount of bytes to generate.
 - #### **Returns**:  A randomized Buffer.
 <br>
 
 >### computeDigitalSignature(privateECSigningKey, buffer)
-- #### **Description:** Compute an ECDSA digital signature on the input buffer.
+- #### **Description:** Digitally sign the input buffer.
 - #### **privateECSigningKey**: The signing EC private key that will be used to compute the digital signature.
 - #### **buffer**: The data to be signed as a Buffer.
-- #### **Returns**:  The computed ECDSA digital signature.
+- #### **Returns**:  The computed digital signature.
 <br>
 
 >### verifyDigitalSignature(publicECVerificationKey, signature, buffer)
-- #### **Description:** ECDSA digital signature verification algorithm.
+- #### **Description:** Digital signature verification algorithm.
 - #### **publicECVerificationKey**: The public verification EC key that will be used to verify the input digital signature.
-- #### **signature**: The ECDSA digital signature as a Buffer.
+- #### **signature**: The digital signature as a Buffer.
 - #### **buffer**: The data, as a Buffer, against which the signature will be verified.
-- #### **Returns**:  A boolean value indicating whether the input signature is valid (`true`) based on the remaining provided inputs, or not (`false`).
+- #### **Returns**:  A boolean value indicating whether the input signature is valid (`true`), or not (`false`).
 <br>
 
-We note that functions related to digital signatures, by default, employ the SHA-2-256 hash function (refer to `crypto/private_config.js` for a complete list of cryptographic parameters)
+We note that functions related to digital signatures, by default, employ the SHA-2-256 hash function (refer to `crypto/private_config.js` for a complete list of cryptographic parameters).
 <br>
 
 >### symmetricEncrypt(key, plaintext, iv)
@@ -121,7 +127,7 @@ The `KMAC` property of the module's configuration is an object that provides two
 - #### **Description:** Computes a message authentication code (MAC) based on the input key and the data for which we want to provide message integrity.
 - #### **key**: The key, as a Buffer, that will be used as input to the computation of the MAC.
 - #### **data**: A Buffer that contains the data that we want to provide integrity for.
-- #### **Returns**:  The computed MAC as a Buffer, to which we interchangeably refer to as a `tag` as well.
+- #### **Returns**:  The computed MAC as a Buffer, to which we interchangeably refer to as `tag` as well.
 <br>
 
 >### verifyKMAC(tag, key, data)
@@ -131,7 +137,7 @@ The `KMAC` property of the module's configuration is an object that provides two
 - #### **data**: A Buffer that contains the data against which we want to verify the input MAC.
 - #### **Returns**:  A boolean value indicating whether the input MAC (`tag`) is valid (`true`) based on the input data, or not (`false`).
 
-The `ECEphemeralKeyAgreement` property is a class that provides an interface that can be used for ECDH and ECDHE. Internally, the default implementation employs the `ECDH` functionalities of JavaScript's `crypto` module. The following callable functions are provided:
+The `ECEphemeralKeyAgreement` property is a class that provides an interface that can be used for ECDH and ECDHE and provides the following callable functions:
 <br>
 
 >### generateEphemeralPublicKey()
@@ -148,7 +154,7 @@ The `ECEphemeralKeyAgreement` property is a class that provides an interface tha
 >### computeSharedSecretFromKeyPair(myECDHPrivateKey, theirECDHPublicKey)
 - #### **Description:** This function is, typically, invoked by the receiver to compute the shared secret, which will, subsequently, allow her to derive the symmetric encryption and KMAC keys.
 - #### **myECDHPrivateKey**: The receiver's private ECDH key as a Buffer.
-- #### **theirECDHPublicKey**: The ephemeral ECDH public key as a Buffer.
+- #### **theirECDHPublicKey**: The (ephemeral) ECDH public key as a Buffer.
 - #### **Returns**: The shared secret as a Buffer.
 
 Note that all the aforementioned functions will throw an `Error()` if, for instance, any of the input keys are invalid for the specific curve (by default, we employ the `secp256k1` curve).
@@ -174,36 +180,50 @@ Lastly, the `params` property of the default cryptographic configuration contain
 The `symmetricCipherKeySize` and `macKeySize` are required by the encryption and decryption algorithms of ECIES implementations to compute the `outputByteSize` of the KDF. The `ivSize` is required by the encryption algorithm of ECIES to produce a sufficiently large and cryptographically random IV that will be used as input to the symmetric encryption algorithm. The `curveName` is required by the `ECEphemeralKeyAgreement` class and can be modified by clients of this module. **We stress that if client code modifies the value of the named curve, existing instances of the `ECEphemeralKeyAgreement` class should be invalidated and new ones should be created in their place where needed.**
 
 # ECIES-DOA-DS
-In this version of ECIES, the main idea is that we use a digital signature to authenticate the sender of the message to the receiver. However, we really don't want a man-in-the-middle (MITM) to be able to infer the public key of the sender. Indeed, we only want the receiver of the message to be able to infer the public key of the sender. A high-level description of how we achieve this is as follows. The ECIES plaintext is comprised by three parts: 1) the sender's public key, 2) the actual message and, 3) a digital signature on the ECDHE secret. Since ECIES is based on ephemeral shared secrets and since we use freshly-generated IVs for each transmitted message, it (hopefully) is obvious that even if the same sender (public key) sends the same message to the same receiver, the resulting ciphertext will always have a different byte representation (in the honest sender setting of course). Note also that ECDSA signatures are also randomized, which is another reason for which the resulting ciphertext will be different. In addition, since the ECDHE secret can only be computed by the receiver and is unique for each message, only the receiver can decrypt the ciphertext. Furthermore, since the sender's public key and signature is "hidden" inside the ECIES ciphertext, it is never exposed in transit. Hence, even if we assume a MITM that has a list of all the public keys in the world, the sender's identity is concealed. 
+In this version of ECIES, the main idea is that we use a digital signature to authenticate the sender of the message to the receiver. However, we really don't want a man-in-the-middle (MITM) to be able to infer the public key of the sender. Indeed, we only want the receiver of the message to be able to infer the public key of the sender. A high-level description of how we achieve this is as follows. The ECIES plaintext is comprised by three parts: 1) a digital signature on the ECDHE secret, 2) the sender's EC public key based on which the receiver can verify the digital signature and, 3) the actual message. Since ECIES is based on ephemeral shared secrets and since we use freshly-generated IVs for each transmitted message, it (hopefully) is obvious that even if the same sender (public key) sends the same message to the same receiver, the resulting ciphertext will always have a different byte representation (in the honest sender setting of course). Note also that ECDSA signatures are also randomized, which is another reason for which the resulting ciphertext will be different. In addition, since the ECDHE secret can only be computed by the receiver and is unique for each message, only the receiver can decrypt the ciphertext. Furthermore, since the sender's public key and signature is "hidden" inside the ECIES ciphertext, it is never exposed in transit. Hence, even if we assume a MITM that has a list of all the public keys in the world, the sender's identity is concealed. 
 
-We stress that a malicious receiver `A` can reveal a message's origin to some other party `X` by taking advantage of the non-repudiation property of digital signatures. However, in order for `X` to be unequivocaly convinced, `A` is forced to reveal her private key to `X`. Lastly, we stress that a malicious receiver `A` cannot use an honest sender's `B` digital signature on some shared ephemeral secret `S` so that `A` can impersonate herself as `B` to some other receiver `C`, without breaking the discrete logarithm problem.
+We stress that a malicious receiver `A` can reveal a message's origin to some other party `X` by taking advantage of the non-repudiation property of digital signatures. However, in order for `X` to be unequivocally convinced, `A` is forced to reveal her private key to `X` which, in the general case, we assume that `A` would not want to do as that would allow `X` to impersonate `A` in the future. Lastly, we stress that a malicious receiver `A` cannot use an honest sender's `B` digital signature on some shared ephemeral secret `S` so that `A` can impersonate herself as `B` to some other receiver `C`, without breaking the discrete logarithm problem.
 
 ## Quick Start Guide
 If you are interested in just using this version of the implementation, without digging into the nitty gritty details, in the following, we provide a simple usage example, in which `Alice` wants to send a message to `Bob`:
 
 ```js
-const ecies = require('./ecies-doa-ds') //import the ECIES module
+const ecies = require('./ecies-doa-ds'); //import the ECIES module
 const assert = require('assert').strict;
-// The next two lines are required to properly import and initialize the pskcrypto module
-$$ = {Buffer}; 
-const pskcrypto = require("./pskcrypto");
+const crypto = require('crypto'); //import the default crypto module so that we can generate keys
+const curveName = require('./crypto').params.curveName; //get the default named curve
+
 // The message we want to transmit, as a Buffer, which is what the encrypt() function expects
 const plainTextMessage = Buffer.from('hello world');
-let keyGenerator = pskcrypto.createKeyPairGenerator(); // Object that allows us to generate EC key pairs
-let aliceECKeyPair = keyGenerator.generateKeyPair(); // Generate Alice's EC key pair (message sender)
-let bobECKeyPair = keyGenerator.generateKeyPair(); // Generate Bob's EC key pair (message receiver)
 
-// We have to convert Alice's key pair to PEM format because that's what the encryption function expects
-let alicePEMKeyPair = keyGenerator.getPemKeys(aliceECKeyPair.privateKey, aliceECKeyPair.publicKey)
+// Generate Alice's EC signing key pair
+let aliceECSigningKeyPair = crypto.generateKeyPairSync(
+    'ec',
+    {
+        namedCurve: curveName
+    }
+)
+// Generate Bob's ECDH key pair (message receiver)
+let bobECDH = crypto.createECDH(curveName)
+let bobECDHPublicKey = bobECDH.generateKeys(); 
+let bobECDHPrivateKey = bobECDH.getPrivateKey();
 
 // Encrypt the message. The function returns a JSON object that you can send over any communication
 // channel you want (e.g., HTTP, WS).
-let encEnvelope = ecies.encrypt(alicePEMKeyPair, bobECKeyPair.publicKey, plainTextMessage)
+let encEnvelope = ecies.encrypt(aliceECSigningKeyPair, bobECDHPublicKey, plainTextMessage)
+console.log("Encrypted Envelope:")
+console.log(encEnvelope)
 
-// .... Message is transmitted to Bob somehow
-
+// ... The encrypted envelope is somehow transmitted to Bob
+// Bob receives the encrypted envelope
+// Bob decodes the ECDH public key for which this encrypted envelope is intended for
+let myECDHPublicKey = ecies.getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope)
+// ... Bob searches his key database for the corresponding ECDH private key
+// ... We assume here that Bob finds it
+assert(Buffer.compare(myECDHPublicKey, bobECDHPublicKey) === 0, "PUBLIC KEYS ARE NOT EQUAL")
 // Bob calls the decryption function and gets back an object.
-let decEnvelope = eciesds.decrypt(bobECKeyPair.privateKey, encEnvelope)
+let decEnvelope = ecies.decrypt(bobECDHPrivateKey, encEnvelope)
+assert(Buffer.compare(decEnvelope.message, plainTextMessage) === 0, "MESSAGES ARE NOT EQUAL")
 // Here is the decrypted message!
 console.log('Decrypted message is: ' + decEnvelope.message);
 ```
@@ -211,12 +231,20 @@ This code sample is based on the one provided in the `example-ecies-doa-ds.js` f
 
 ## API Specification
 
-In this section, we document the main functions that are exposed by this module, i.e., `encrypt()` and `decrypt()` (assuming the default configuration options that were previously discussed), which are defined as follows:
+In this section, we document the main functions that are exposed by this module, assuming the default cryptographic configuration options that were previously discussed, which are defined as follows:
 <br>
 
->### encrypt(senderECKeyPairPEM, receiverECPublicKey, message)
-- #### **senderECKeyPairPEM**: An object with properties `publicKey` and `privateKey` that encompass the sender's EC key pair. Both keys should be in PEM format.
-- #### **receiverECPublicKey**: The EC public key of the receiver as a Buffer. **Note** that this is not in a standardized format, i.e., DER or PEM. In short, this key should be in the same form as the ones returned by JavaScript's `crypto.ecdh.generateKeys()` method. Refer to the [NotesJSCrypto.md](NotesJSCrypto.md) file for more information.
+>### getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope)
+- #### **Description:** This is a helper function that is intended to be used by the receiver so that he can easily get, on input an encrypted envelope object (described below), the public ECDH key used by the sender of the message.
+- #### **encEnvelope**: An encrypted envelope object (described below).
+- #### **Returns**:  The decoded ECDH public key as a Buffer.
+
+The receiver of an encrypted envelope needs to infer which specific ECDH private key she should input to the decryption function (described later on in this section). To achieve this, the receiver is, typically, expected to first invoke this function and, subsequently, query w/e database she uses for key storage. Clearly, if the corresponding key cannot be located, the envelope should be discarded as the decryption function will throw an error.
+<br>
+
+>### encrypt(senderECSigningKeyPair, receiverECDHPublicKey, message)
+- #### **senderECSigningKeyPair**: An object with properties `publicKey` and `privateKey` that encompass the sender's EC signing key pair.
+- #### **receiverECDHPublicKey**: The ECDH public key of the receiver as a Buffer.
 - #### **message**: The message as a Buffer that we want to encrypt and send across the wire.
 - #### **Returns**:  An encrypted envelope object (described below).
 
@@ -224,35 +252,27 @@ This function should **always** be invoked in a `try-catch` block as it can thro
 
 ```json
 {
-  "to": "BGPsbspekGbi09bnl2CnhMlKG90EQZbPOg85TuDnbLm6E4BELDA8HZoSNgXbkPV68PwzeHO1LIFKbJUJjLpl5UE=",
+  "to_ecdh": "BGPsbspekGbi09bnl2CnhMlKG90EQZbPOg85TuDnbLm6E4BELDA8HZoSNgXbkPV68PwzeHO1LIFKbJUJjLpl5UE=",
   "r": "BNIgR9BTXUEXTsyLMMNRaulX0XpGEKW9VUQq7VvQo/cvx2GmXyAicrMWE2LKlL6nyvVIH6RLGUr4pRpbjjuTlvA=",
   "ct": "VQjzWrHP68Ht2t0SYbWFQ8zTBY88uR7/i8HuqB4d/bsXLP3diLFBJWAcCI624uiIp1SrF/y5eXGvxqx2Cmf7BZWFpxjITkzPssWMqZzUrClQMSjtqVIIAJUQlCBMrsoVVTY1da6nNz5gkkI23cKzpJhInFh+2r1VNe7zNLCpBifuX8CXQMFPmyj2PUxJCq+wleWPWVeqFreL/ByC/dcqL3q/RZ4+ZJADZ9wRZll6IdlgHZ0DmMpyu4NyQyin7zhlOuABa+VaU7QTcXslKpEEeQ==",
   "iv": "DEqhcfpCwnpdyjqGD8v1Iw==",
   "tag": "hhmPiBdKbpg9naoEFqsVDdpcI0kqjTpJ9CvP5Caz2zs="
 }
 ```
-A descriptive overview of the fields of an encrypted envelope object (assuming the default configuration options) is as follows:
-1. `to`: The receiver's encoded public key.
-1. `r`: The encoded ECDHE public key.
-1. `ct`: The encoded ciphertext.
-1. `iv`: The initialization vector of the symmetric cipher in encoded form.
-1. `tag`: The output of the KMAC function in encoded form.
+A succinct overview of the fields of an encrypted envelope object is as follows:
+1. `to_ecdh`: The receiver's ECDH public key.
+1. `r`: The ECDHE public key.
+1. `ct`: The ciphertext.
+1. `iv`: The initialization vector of the symmetric cipher.
+1. `tag`: The output of the KMAC function.
+<br>
 
-The receiver of an encrypted envelope needs to infer which specific EC private key she should input to the decryption function. To achieve this, the receiver is, typically, expected to decode the `to` field of the received envelope and query w/e database she uses for key storage. Clearly, if the corresponding key cannot be located, the envelope should be discarded as the decryption function will throw an error. The signature of the decryption function is as follows:
-
->### decrypt(receiverPrivateKey, encEnvelope)
-- #### **receiverPrivateKey**: The private key that corresponds to the one encoded in the `to` field of the input encrypted envelope. Regarding the format of this key, we refer the reader to our notes on the `receiverECPublicKey` of the `encrypt()` function.
+>### decrypt(receiverECDHPrivateKey, encEnvelope)
+- #### **receiverECDHPrivateKey**: The receiver's ECDH private key that corresponds to the one encoded in the `to_ecdh` field of the input encrypted envelope.
 - #### **encEnvelope**: An encrypted envelope object as is output by the `encrypt()` function.
-- #### **Returns**:  An Object with two properties containing the sender's EC public key in PEM format and the message as a Buffer.
+- #### **Returns**:  An Object with two properties, i.e., `from_ecsig`, which contains the EC public verification key of the sender as a `KeyObject`, and `message`, which contains the message as a Buffer.
 
-The object that is output by the `decrypt()` function is as follows:
-```json
-{
-    "from": "-----BEGIN PUBLIC KEY-----\nMFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEbcUJt65Ds9fhvZwlf0ONArf1EoZGSyIk\ni4YGqSulscTxvj/SnDPaczHdVJZhe/hmEbhIcLRMUj8shmeoEn33KQ==\n-----END PUBLIC KEY-----",
-    "message": <Buffer 68 65 6c 6c 6f 20 77 6f 72 6c 64>
-}
-```
-The `from` field contains the PEM encoded public key of the sender and the `message` field contains the data transmitted by the sender. This function should **always** be invoked in a `try-catch` block as it can throw exceptions for various reasons.
+This function should **always** be invoked in a `try-catch` block as it can throw exceptions for various reasons.
 
 ## Benchmark
 
@@ -295,12 +315,14 @@ let encEnvelope = ecies.encrypt(bobECDHPublicKey, plainTextMessage)
 console.log("Encrypted Envelope:")
 console.log(encEnvelope)
 
-// ... Message is somehow transmitted to Bob
-// Bob receives the message
+// ... The encrypted envelope is somehow transmitted to Bob
+// Bob receives the encrypted envelope
+// Bob decodes the ECDH public key for which this encrypted envelope is intended for
 let myECDHPublicKey = ecies.getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope)
 // ... Bob searches his key database for the corresponding ECDH private key
+// ... We assume here that Bob finds it
 assert(Buffer.compare(myECDHPublicKey, bobECDHPublicKey) === 0, "PUBLIC KEYS ARE NOT EQUAL")
-// Bob calls the decryption function and gets back an object.
+// Bob calls the decryption function and gets back the message
 let decMessage = ecies.decrypt(bobECDHPrivateKey, encEnvelope)
 assert(Buffer.compare(decMessage, plainTextMessage) === 0, "MESSAGES ARE NOT EQUAL")
 // Here is the decrypted message!
@@ -322,7 +344,7 @@ The receiver of an encrypted envelope needs to infer which specific ECDH private
 
 >### encrypt(receiverECDHPublicKey, message)
 - #### **Description:** The encryption function of this ECIES implementation.
-- #### **receiverECDHPublicKey**: The ECDH public key of the receiver as is returned by JavaScript's `crypto.ecdh.generateKeys()` method.
+- #### **receiverECDHPublicKey**: The ECDH public key of the receiver as a Buffer.
 - #### **message**: The message as a Buffer that we want to encrypt and send across the wire.
 - #### **Returns**:  An encrypted envelope object (described below).
 
@@ -337,17 +359,17 @@ This function should **always** be invoked in a `try-catch` block as it can thro
   "tag": "RH+dXUTYfGDTj+sctNJQjbVi9cXRpXE62elWPpB4iAA="
 }
 ```
-A descriptive overview of the fields of an encrypted envelope object (assuming the default configuration options) is as follows:
-1. `to_ecdh`: The receiver's ECDH public key in encoded form.
-1. `r`: The encoded ECDHE public key.
-1. `ct`: The encoded ciphertext.
-1. `iv`: The initialization vector of the symmetric cipher in encoded form.
-1. `tag`: The output of the KMAC function in encoded form.
+A succinct overview of the fields of an encrypted envelope object is as follows:
+1. `to_ecdh`: The receiver's ECDH public key.
+1. `r`: The ECDHE public key.
+1. `ct`: The ciphertext.
+1. `iv`: The initialization vector of the symmetric cipher.
+1. `tag`: The output of the KMAC function.
 <br>
 
 >### decrypt(receiverECDHPrivateKey, encEnvelope)
 - #### **Description:** The decryption function of this ECIES implementation.
-- #### **receiverECDHPrivateKey**: The private key that corresponds to the one encoded in the `to_ecdh` field of the input encrypted envelope.
+- #### **receiverECDHPrivateKey**:  The receiver's ECDH private key that corresponds to the one encoded in the to_ecdh field of the input encrypted envelope.
 - #### **encEnvelope**: An encrypted envelope object as is output by the `encrypt()` function.
 - #### **Returns**:  The decrypted message as a Buffer.
 
@@ -373,7 +395,7 @@ for `msgNo=500` and `msgSize=100`, which was executed on a fairly resource-const
 - [ ] There is a need for a unified key format. Some functions require PEM formatted keys, others use binary point representation (not DER). This is kinda messy.
 - [ ] An extension to the previous point is that this unified format should be extended to how keys are encoded in communicated messages and the envelope that is output by, e.g., the decryption function.
 - [ ] We need a "proper" library for EC point operations. This will allow us to explore other options for ECIES implementations, such as ECDH co-factor. 
-- [ ] At some point in time, the `pskcrypto` dependency should be removed to constitute the code provided here as self-contained as possible.
+- [x] At some point in time, the `pskcrypto` dependency should be removed to constitute the code provided here as self-contained as possible.
 - [ ] Explore and evaluate the degree in which operations can be parallelized.
 - [ ] Expand the provided API to allow for optional callbacks.
 

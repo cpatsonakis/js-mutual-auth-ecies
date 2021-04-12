@@ -17,12 +17,14 @@ let encEnvelope = ecies.encrypt(bobECDHPublicKey, plainTextMessage)
 console.log("Encrypted Envelope:")
 console.log(encEnvelope)
 
-// ... Message is somehow transmitted to Bob
-// Bob receives the message
+// ... The encrypted envelope is somehow transmitted to Bob
+// Bob receives the encrypted envelope
+// Bob decodes the ECDH public key for which this encrypted envelope is intended for
 let myECDHPublicKey = ecies.getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope)
 // ... Bob searches his key database for the corresponding ECDH private key
+// ... We assume here that Bob finds it
 assert(Buffer.compare(myECDHPublicKey, bobECDHPublicKey) === 0, "PUBLIC KEYS ARE NOT EQUAL")
-// Bob calls the decryption function and gets back an object.
+// Bob calls the decryption function and gets back the message
 let decMessage = ecies.decrypt(bobECDHPrivateKey, encEnvelope)
 assert(Buffer.compare(decMessage, plainTextMessage) === 0, "MESSAGES ARE NOT EQUAL")
 // Here is the decrypted message!

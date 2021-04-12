@@ -1,11 +1,10 @@
-const eciesds = require('../eciesds')
 const crypto = require('crypto')
+const kdf2 = require('../crypto').KDF
 
 function getRandomInt(max) {
     return Math.floor(Math.random() * Math.floor(max));
   }
 
-kdf2 = eciesds.config.evaluateKDF
 const maxInputSize = 8
 const maxOutputSize = 300
 const testIterations = 10000

@@ -20,7 +20,13 @@ module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
     const tag = Buffer.from(encEnvelope.tag, mycrypto.encodingFormat)
     const iv = Buffer.from(encEnvelope.iv, mycrypto.encodingFormat)
 
-    mycrypto.KMAC.verifyKMAC(tag, macKey, Buffer.concat([ciphertext, iv], ciphertext.length + iv.length))
+    if (!mycrypto.KMAC.verifyKMAC(tag,
+        macKey,
+        Buffer.concat([ciphertext, iv],
+            ciphertext.length + iv.length))
+    ) {
+        throw new Error("Bad MAC")
+    }
 
     return mycrypto.symmetricDecrypt(symmetricEncryptionKey, ciphertext, iv)
 }
