@@ -19,7 +19,7 @@ function symmetricEncrypt(key, plaintext, iv) {
 
 function symmetricDecrypt(key, ciphertext, iv) {
     if (key.length != config.symmetricCipherKeySize) {
-        throw new Error('Invalid length of input symmetric dencryption key')
+        throw new Error('Invalid length of input symmetric decryption key')
     }
     if (iv === undefined) {
         iv = null

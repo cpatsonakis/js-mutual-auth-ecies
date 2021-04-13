@@ -6,7 +6,7 @@ const common = require('../common')
 function checkWrappedMessageMandatoryProperties(wrappedMessage) {
     const mandatoryProperties = ["from_ecdh", "msg"];
     mandatoryProperties.forEach((property) => {
-        if (typeof wrappedMessage[property] === undefined) {
+        if (typeof wrappedMessage[property] === 'undefined') {
             throw new Error("Mandatory property " + property + " is missing from wrapped message");
         }
     })
