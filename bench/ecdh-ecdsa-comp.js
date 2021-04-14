@@ -12,7 +12,7 @@ let aliceECDHPrivateKey = aliceECDH.getPrivateKey()
 let aliceECSigningKeyPair = crypto.generateKeyPairSync(
     'ec',
     {
-        namedCurve: curveName
+        namedCurve: mycrypto.params.curveName
     }
 )
 // Generate Bob's ECDH key pair (message receiver)
