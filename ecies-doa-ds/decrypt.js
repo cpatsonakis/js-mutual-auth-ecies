@@ -7,7 +7,7 @@ const crypto = require('crypto')
 function checkWrappedMessageMandatoryProperties(wrappedMessage) {
     const mandatoryProperties = ["from_ecsig", "msg", "sig"];
     mandatoryProperties.forEach((property) => {
-        if (typeof wrappedMessage[property] === undefined) {
+        if (typeof wrappedMessage[property] === 'undefined') {
             throw new Error("Mandatory property " + property + " is missing from wrapped message");
         }
     })

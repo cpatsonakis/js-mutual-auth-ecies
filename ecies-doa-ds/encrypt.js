@@ -20,6 +20,8 @@ module.exports.encrypt = function (senderECSigningKeyPair, receiverECDHPublicKey
         throw new Error('Input message has to be of type Buffer')
     }
 
+    common.checkKeyPairMandatoryProperties(senderECSigningKeyPair)
+
     const ephemeralKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
     const ephemeralPublicKey = ephemeralKeyAgreement.generateEphemeralPublicKey()
     const sharedSecret = ephemeralKeyAgreement.generateSharedSecretForPublicKey(receiverECDHPublicKey)

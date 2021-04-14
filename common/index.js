@@ -42,10 +42,20 @@ function createEncryptedEnvelopeObject(receiverECDHPublicKey, ephemeralECDHPubli
     }
 }
 
+function checkKeyPairMandatoryProperties(keyPairObject) {
+    const mandatoryProperties = ["publicKey", "privateKey"];
+    mandatoryProperties.forEach((property) => {
+        if (typeof keyPairObject[property] === 'undefined') {
+            throw new Error("Mandatory property " + property + " is missing from input key pair object");
+        }
+    })
+}
+
 module.exports = {
     computeKDFInput,
     computeSymmetricEncAndMACKeys,
     getDecodedECDHPublicKeyFromEncEnvelope,
     checkEncryptedEnvelopeMandatoryProperties,
-    createEncryptedEnvelopeObject
+    createEncryptedEnvelopeObject,
+    checkKeyPairMandatoryProperties
 }
