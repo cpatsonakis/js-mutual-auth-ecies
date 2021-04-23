@@ -18,6 +18,8 @@ module.exports = {
     KMAC: kmac,
     ECEphemeralKeyAgreement: require('./ecephka'),
     KDF: kdf.KDF2,
+    PublicKeySerializer: require('./pkserializer'),
+    PublicKeyDeserializer: require('./pkdeserializer'),
     params: {
         symmetricCipherKeySize: config.symmetricCipherKeySize,
         macKeySize: config.macKeySize,

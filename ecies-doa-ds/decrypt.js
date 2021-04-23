@@ -2,7 +2,6 @@
 
 const mycrypto = require('../crypto')
 const common = require('../common')
-const crypto = require('crypto')
 
 function checkWrappedMessageMandatoryProperties(wrappedMessage) {
     const mandatoryProperties = ["from_ecsig", "msg", "sig"];
@@ -39,11 +38,7 @@ module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
 
     let wrappedMessageObject = JSON.parse(mycrypto.symmetricDecrypt(symmetricEncryptionKey, ciphertext, iv).toString())
     checkWrappedMessageMandatoryProperties(wrappedMessageObject)
-    const senderECSigVerPublicKey = crypto.createPublicKey({
-        key: wrappedMessageObject.from_ecsig,
-        format: 'pem',
-        type: 'spki'
-    })
+    const senderECSigVerPublicKey = mycrypto.PublicKeyDeserializer.deserializeECSigVerPublicKey(wrappedMessageObject.from_ecsig)
 
     if (!mycrypto.verifyDigitalSignature(senderECSigVerPublicKey,
         Buffer.from(wrappedMessageObject.sig, mycrypto.encodingFormat),

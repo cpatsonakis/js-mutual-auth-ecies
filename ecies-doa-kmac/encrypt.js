@@ -5,7 +5,7 @@ const common = require('../common')
 
 function senderMessageWrapAndSerialization(senderECDHPublicKey, message) {
   return JSON.stringify({
-    from_ecdh: senderECDHPublicKey.toString(mycrypto.encodingFormat),
+    from_ecdh: mycrypto.PublicKeySerializer.serializeECDHPublicKey(senderECDHPublicKey),
     msg: message
   });
 }
@@ -32,6 +32,7 @@ module.exports.encrypt = function (senderECDHKeyPair, receiverECDHPublicKey, mes
 
   const iv = mycrypto.getRandomBytes(mycrypto.params.ivSize)
   const ciphertext = mycrypto.symmetricEncrypt(symmetricEncryptionKey, senderAuthMsgEnvelopeSerialized, iv)
+  // **TODO**: This does not seem correct, need to think about it.
   const tag = mycrypto.KMAC.computeKMAC(macKey,
     Buffer.concat([ciphertext, iv, senderDerivedSharedSecret],
       ciphertext.length + iv.length + senderDerivedSharedSecret.length)

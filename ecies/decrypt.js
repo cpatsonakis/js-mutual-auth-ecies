@@ -8,7 +8,7 @@ module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
 
     common.checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
 
-    const ephemeralPublicKey = Buffer.from(encEnvelope.r, mycrypto.encodingFormat)
+    const ephemeralPublicKey = mycrypto.PublicKeyDeserializer.deserializeECDHPublicKey(encEnvelope.r)
 
     const ephemeralKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
     const sharedSecret = ephemeralKeyAgreement.computeSharedSecretFromKeyPair(receiverECDHPrivateKey, ephemeralPublicKey)

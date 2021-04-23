@@ -19,8 +19,10 @@ function computeSymmetricEncAndMACKeys(kdfInput) {
 }
 
 function getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope) {
-    checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
-    return Buffer.from(encEnvelope.to_ecdh, mycrypto.encodingFormat)
+    if (encEnvelope.to_ecdh === undefined) {
+        throw new Error("Receiver ECDH public key property not found in input encrypted envelope")
+    }
+    return mycrypto.PublicKeyDeserializer.deserializeECDHPublicKey(encEnvelope.to_ecdh)
 }
 
 function checkEncryptedEnvelopeMandatoryProperties(encryptedEnvelope) {
@@ -34,8 +36,8 @@ function checkEncryptedEnvelopeMandatoryProperties(encryptedEnvelope) {
 
 function createEncryptedEnvelopeObject(receiverECDHPublicKey, ephemeralECDHPublicKey, ciphertext, iv, tag) {
     return {
-        to_ecdh: receiverECDHPublicKey.toString(mycrypto.encodingFormat),
-        r: ephemeralECDHPublicKey.toString(mycrypto.encodingFormat),
+        to_ecdh: mycrypto.PublicKeySerializer.serializeECDHPublicKey(receiverECDHPublicKey),
+        r: mycrypto.PublicKeySerializer.serializeECDHPublicKey(ephemeralECDHPublicKey),
         ct: ciphertext.toString(mycrypto.encodingFormat),
         iv: iv.toString(mycrypto.encodingFormat),
         tag: tag.toString(mycrypto.encodingFormat)

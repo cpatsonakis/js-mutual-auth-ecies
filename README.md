@@ -41,7 +41,7 @@ An astute reader (or evidently anyone that reads this statement) may ponder as t
 
 As a starting point, we begin by stressing the importance of **using different keys for encryption and KMAC computation**. We have witnessed several cases where readily available implementations on the web employ the same key for both of these processes. We stress, in short, that use of a single key `k` may allow an attacker to modify the ciphertext `ct` -mind you, without even having knowledge of the plaintext- to `ct'`, such that the KMAC will still be valid at the receiver's end. This does not apply to all symmetric cipher suites, however, it is considered best practice among the cryptographic community to use separate keys, or even more generally speaking, that implementers should **not** use a key (or key pair) for multiple purposes.
 
-Overall, and as was hinted in the previous section, the code base provided here employs keys for several distinct functionalities, i.e., symmetric encryption, KMACs, key agreement and digital signatures. Hence, it is relevant for, e.g., developers that wish to use the code base provided here, to briefly discuss the topic of how all these different keys are (expected to be) encoded, i.e., their format. Since the default implementations of the cryptographic algorithms employ NodeJS's `crypto` module in the background, the points discussed below will be based on this fact. Symmetric and KMAC keys are expected to be encoded as Buffer types. For KA, and since it is based on ECDH, keys are expected to comply to the format that is output by the `ECDH` class which, in short, are of type Buffer and **do not comply** to standardized key encodings, e.g., DER. Regarding EC key pairs for computing and verifying digital signatures, we suggest the use of the `KeyObject` type. An alternative is to use PEM encoded key strings.
+Overall, and as was hinted in the previous section, the code bases provided here employ keys for several distinct functionalities, e.g., key agreement and digital signatures.  Hence, it is relevant for, e.g., developers, to briefly discuss the types (in programming language terms) of these keys, as well as, their serialization format when they are transmitted over the wire. The default implementations of the cryptographic algorithms employ NodeJS's `crypto` module in the background, thus, the points discussed below will be based on this fact. Key agreement keys that are input to, or output from, various functions are expected to comply to the format that is output by the `ECDH` class which, in short, are of type `Buffer` and, in the interest of clarity, we stress that they **do not comply** to any standardized key encoding, e.g., DER. ECDH public keys are serialized as `base64` encoded strings. Regarding EC key pairs for computing and verifying digital signatures, the crypto defaults expect `KeyObject` types. Public EC signature verification keys are serialized by, first, exporting them (via `KeyObject.export()`) in DER format and, subsequently, encoding them as `base64` encoded strings. Lastly, we do not discuss symmetric and KMAC keys here as these are handled internally in the ECIES encryption and decryption functions and are, thus, not directly exposed to developers.
 
 We conclude this section by stressing that we have noticed a tremendous inconsistency in regards to how keys are handled and formatted by NodeJS's `crypto` module. For the interested reader, we have documented our (unfortunate) experiences with this module in the [NotesJSCrypto.md](NotesJSCrypto.md) file.
 
@@ -60,6 +60,8 @@ The `crypto` module provided here exposes the following object (defined in `cryp
     KMAC: kmac,
     ECEphemeralKeyAgreement: require('./ecephka'),
     KDF: kdf.KDF2,
+    PublicKeySerializer: require('./pkserializer'),
+    PublicKeyDeserializer: require('./pkdeserializer'),
     params: {
         symmetricCipherKeySize: config.symmetricCipherKeySize,
         macKeySize: config.macKeySize,
@@ -71,34 +73,34 @@ The `crypto` module provided here exposes the following object (defined in `cryp
 In the following, we elaborate on the concrete meaning of all these options.
 
 >### encodingFormat 
-- #### **Description:** String value denoting how, e.g., Buffers should be converted to string values.
+- #### **Description:** String value denoting how, e.g., `Buffer` types should be converted to (encoded as) string values.
 <br>
 
 >### timingSafeEqual(a, b)
 - #### **Description:** Constant-time equality evaluation algorithm that is suitable for cryptographic applications. We employ the `timingSafeEqual()` function of NodeJS's `crypto` module as the default.
-- #### **a**: The first input value, typically of type Buffer.
-- #### **b**: The second input value, typically of type Buffer.
+- #### **a**: The first input value, typically of type `Buffer`.
+- #### **b**: The second input value, typically of type `Buffer`.
 - #### **Returns**:  A boolean value that will be set to `true` if `a` is equal to `b`, or `false` otherwise.
 <br>
 
 >### getRandomBytes(size)
 - #### **Description:** A cryptographically strong source of entropy/randomness. We employ the `randomBytes()` function of NodeJS's `crypto` module as the default.
 - #### **size**: The amount of bytes to generate.
-- #### **Returns**:  A randomized Buffer.
+- #### **Returns**:  A randomized `Buffer`.
 <br>
 
 >### computeDigitalSignature(privateECSigningKey, buffer)
-- #### **Description:** Digitally sign the input buffer.
+- #### **Description:** Digitally sign the input buffer, which is of type `Buffer`.
 - #### **privateECSigningKey**: The signing EC private key that will be used to compute the digital signature.
-- #### **buffer**: The data to be signed as a Buffer.
-- #### **Returns**:  The computed digital signature.
+- #### **buffer**: The data to be signed as a `Buffer` type.
+- #### **Returns**:  The computed digital signature as a `Buffer` type.
 <br>
 
 >### verifyDigitalSignature(publicECVerificationKey, signature, buffer)
 - #### **Description:** Digital signature verification algorithm.
 - #### **publicECVerificationKey**: The public verification EC key that will be used to verify the input digital signature.
-- #### **signature**: The digital signature as a Buffer.
-- #### **buffer**: The data, as a Buffer, against which the signature will be verified.
+- #### **signature**: The digital signature as a `Buffer` type.
+- #### **buffer**: The data, as a `Buffer` type, against which the signature will be verified.
 - #### **Returns**:  A boolean value indicating whether the input signature is valid (`true`), or not (`false`).
 <br>
 
@@ -107,34 +109,34 @@ We note that functions related to digital signatures, by default, employ the SHA
 
 >### symmetricEncrypt(key, plaintext, iv)
 - #### **Description:** Symmetric encryption algorithm.
-- #### **key**: The symmetric encryption key as a Buffer.
-- #### **plaintext**: A Buffer that contains the data that will be used to produce the ciphertext.
+- #### **key**: The symmetric encryption key as a `Buffer` type.
+- #### **plaintext**: A `Buffer` that contains the data that will be used to produce the ciphertext.
 - #### **iv**: The cipher's initialization vector (IV), a common parameter for the overwhelming majority of symmetric ciphers. Internally, the ECIES implementations of `encrypt()` generate cryptographically random and fresh IVs for each encrypted payload, so this is not "directly visible" to developers.
-- #### **Returns**:  The computed ciphertext as a Buffer.
+- #### **Returns**:  The computed ciphertext as a `Buffer` type.
 <br>
 
 >### symmetricDecrypt(key, ciphertext, iv)
 - #### **Description:** Symmetric decryption algorithm.
-- #### **key**: The symmetric decryption key as a Buffer. It should be the same as the one that was used for encryption, although again this is handled internally by the ECIES implementations of `decrypt()` and, thus, is not "directly visible" to developers.
-- #### **ciphertext**: A Buffer that contains the ciphertext that will be used to produce the plaintext.
+- #### **key**: The symmetric decryption key as a `Buffer` type. It should be the same as the one that was used for encryption, although again this is handled internally by the ECIES implementations of `decrypt()` and, thus, is not "directly visible" to developers.
+- #### **ciphertext**: A `Buffer` that contains the ciphertext that will be used to produce the plaintext.
 - #### **iv**: The cipher's initialization vector (IV), which is transmitted by the sender along with the ciphertext and the output of the KMAC function.
-- #### **Returns**:  The plaintext as a Buffer.
+- #### **Returns**:  The plaintext as a `Buffer` type.
 
 The `KMAC` property of the module's configuration is an object that provides two callable functions, which are defined as follows:
 <br>
 
 >### computeKMAC(key, data)
 - #### **Description:** Computes a message authentication code (MAC) based on the input key and the data for which we want to provide message integrity.
-- #### **key**: The key, as a Buffer, that will be used as input to the computation of the MAC.
-- #### **data**: A Buffer that contains the data that we want to provide integrity for.
-- #### **Returns**:  The computed MAC as a Buffer, to which we interchangeably refer to as `tag` as well.
+- #### **key**: The key, as a `Buffer` type, that will be used as input to the computation of the MAC.
+- #### **data**: A `Buffer` that contains the data that we want to provide integrity for.
+- #### **Returns**:  The computed MAC as a `Buffer` type, to which we interchangeably refer to as `tag` as well.
 <br>
 
 >### verifyKMAC(tag, key, data)
 - #### **Description:** Verification algorithm for message authentication codes, which allows us to infer if the data were tampered with during transit.
-- #### **tag**: The MAC, as a Buffer, as was computed and transmitted by the sender.
-- #### **key**: The key, as a Buffer, that will be used as input to the computation of the MAC.
-- #### **data**: A Buffer that contains the data against which we want to verify the input MAC.
+- #### **tag**: The MAC, as a `Buffer` type, as was computed and transmitted by the sender.
+- #### **key**: The key, as a `Buffer` type, that will be used as input to the computation of the MAC.
+- #### **data**: A `Buffer` that contains the data against which we want to verify the input MAC.
 - #### **Returns**:  A boolean value indicating whether the input MAC (`tag`) is valid (`true`) based on the input data, or not (`false`).
 
 The `ECEphemeralKeyAgreement` property is a class that provides an interface that can be used for ECDH and ECDHE and provides the following callable functions:
@@ -142,20 +144,20 @@ The `ECEphemeralKeyAgreement` property is a class that provides an interface tha
 
 >### generateEphemeralPublicKey()
 - #### **Description:** An integral part of the encryption process of ECIES is the generation of an ephemeral asymmetric key pair, which is subsequently used to derive a shared secret (refer to the next function) based on the public key of the receiver.
-- #### **Returns**:  An ephemeral ECDH public key as a Buffer.
+- #### **Returns**:  An ephemeral ECDH public key.
 <br>
 
 >### generateSharedSecretForPublicKey(theirECDHPublicKey)
 - #### **Description:** This function should be called **exactly after** the `generateEphemeralPublicKey()` function (described above) to generate the shared secret that is, subsequently, used to derive the symmetric encryption and KMAC keys.
-- #### **theirECDHPublicKey**: The ECDH public key of the receiver as a Buffer.
-- #### **Returns**:  The shared secret as a Buffer.
+- #### **theirECDHPublicKey**: The ECDH public key of the receiver.
+- #### **Returns**:  The shared secret as a `Buffer` type.
 <br>
 
 >### computeSharedSecretFromKeyPair(myECDHPrivateKey, theirECDHPublicKey)
 - #### **Description:** This function is, typically, invoked by the receiver to compute the shared secret, which will, subsequently, allow her to derive the symmetric encryption and KMAC keys.
-- #### **myECDHPrivateKey**: The receiver's private ECDH key as a Buffer.
-- #### **theirECDHPublicKey**: The (ephemeral) ECDH public key as a Buffer.
-- #### **Returns**: The shared secret as a Buffer.
+- #### **myECDHPrivateKey**: The receiver's private ECDH key.
+- #### **theirECDHPublicKey**: The (ephemeral) ECDH public key.
+- #### **Returns**: The shared secret as a `Buffer` type.
 
 Note that all the aforementioned functions will throw an `Error()` if, for instance, any of the input keys are invalid for the specific curve (by default, we employ the `secp256k1` curve).
 
@@ -164,11 +166,41 @@ The `KDF` property of the default cryptographic configuration points to the impl
 
 >### KDF(x, outputByteSize[, hashFunction = config.hashFunctionName][, hashSize = config.hashSize])
 - #### **Description:** A cryptographically secure key derivation function (KDF). The default implementation employs KDF2, which is defined in ISO/IEC 18033-2.
-- #### **x**: A Buffer based on which the KDF will produce its expanded (derived) output.
+- #### **x**: A `Buffer` based on which the KDF will produce its expanded (derived) output.
 - #### **outputByteSize**: An integer indicating the size of the desired output.
 - #### **hashFunction**: The hash function that will be used by the KDF, defaults to SHA-2-256 currently.
 - #### **hashSize**: The output size, in bytes, of the employed hash function as an integer.
-- #### **Returns**: The expanded output as a Buffer.
+- #### **Returns**: The expanded output as a `Buffer` type.
+
+The `PublicKeySerializer` and `PublicKeyDeserializer` properties of the default cryptographic configuration are, essentially, functors whose main purpose is to abstract the serialization and deserialization, respectively, of ECDH and EC public keys. These functors serve as an additional mechanism for abstracting NodeJS's `crypto` module.
+
+The functions exposed by the `PublicKeySerializer` functor are defined as follows:
+<br>
+
+>### serializeECDHPublicKey(ecdhPublicKey)
+- #### **Description:** Serialization function for ECDH public keys.
+- #### **ecdhPublicKey**: An ECDH public key.
+- #### **Returns**: The encoded ECDH public key as a `string` type.
+<br>
+
+>### serializeECSigVerPublicKey(ecSigVerPublicKey)
+- #### **Description:** Serialization function for EC public keys that are used for digital signature verification.
+- #### **ecSigVerPublicKey**: An EC public key.
+- #### **Returns**: The encoded EC public key as a `string` type.
+
+The functions exposed by the `PublicKeyDeserializer` functor are defined as follows:
+<br>
+
+>### deserializeECDHPublicKey(ecdhPublicKeySerialized)
+- #### **Description:** Deserialization function for ECDH public keys.
+- #### **ecdhPublicKeySerialized**: A serialized ECDH public key, i.e., as it is output by the `PublicKeySerializer.serializeECDHPublicKey()` function.
+- #### **Returns**: The deserialized (decoded) ECDH public key.
+<br>
+
+>### deserializeECSigVerPublicKey(ecSigVerPublicKeySerialized)
+- #### **Description:** Deserialization function for EC public keys that are used for digital signature verification.
+- #### **ecSigVerPublicKeySerialized**: A serialized EC public key, i.e., as it is output by the `PublicKeySerializer.serializeECSigVerPublicKey()` function.
+- #### **Returns**: The deserialized (decoded) EC public key.
 
 Lastly, the `params` property of the default cryptographic configuration contains values that are required by the encryption and decryption algorithms of ECIES implementations. These are as follows:
 
@@ -237,14 +269,14 @@ In this section, we document the main functions that are exposed by this module,
 >### getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope)
 - #### **Description:** This is a helper function that is intended to be used by the receiver so that he can easily get, on input an encrypted envelope object (described below), the public ECDH key used by the sender of the message.
 - #### **encEnvelope**: An encrypted envelope object (described below).
-- #### **Returns**:  The decoded ECDH public key as a Buffer.
+- #### **Returns**:  The deserialized (decoded) ECDH public key.
 
 The receiver of an encrypted envelope needs to infer which specific ECDH private key she should input to the decryption function (described later on in this section). To achieve this, the receiver is, typically, expected to first invoke this function and, subsequently, query w/e database she uses for key storage. Clearly, if the corresponding key cannot be located, the envelope should be discarded as the decryption function will throw an error.
 <br>
 
 >### encrypt(senderECSigningKeyPair, receiverECDHPublicKey, message)
 - #### **senderECSigningKeyPair**: An object with properties `publicKey` and `privateKey` that encompass the sender's EC signing key pair.
-- #### **receiverECDHPublicKey**: The ECDH public key of the receiver as a Buffer.
+- #### **receiverECDHPublicKey**: The ECDH public key of the receiver.
 - #### **message**: The message as a Buffer that we want to encrypt and send across the wire.
 - #### **Returns**:  An encrypted envelope object (described below).
 
@@ -270,7 +302,7 @@ A succinct overview of the fields of an encrypted envelope object is as follows:
 >### decrypt(receiverECDHPrivateKey, encEnvelope)
 - #### **receiverECDHPrivateKey**: The receiver's ECDH private key that corresponds to the one encoded in the `to_ecdh` field of the input encrypted envelope.
 - #### **encEnvelope**: An encrypted envelope object as is output by the `encrypt()` function.
-- #### **Returns**:  An Object with two properties, i.e., `from_ecsig`, which contains the EC public verification key of the sender as a `KeyObject`, and `message`, which contains the message as a Buffer.
+- #### **Returns**:  An Object with two properties, i.e., `from_ecsig`, which contains the EC public verification key of the sender, and `message`, which contains the message as a `Buffer` type.
 
 This function should **always** be invoked in a `try-catch` block as it can throw exceptions for various reasons.
 
@@ -338,13 +370,13 @@ In this section, we document the main functions that are exposed by this module,
 >### getDecodedECDHPublicKeyFromEncEnvelope(encEnvelope)
 - #### **Description:** This is a helper function that is intended to be used by the receiver so that he can easily get, on input an encrypted envelope object (described below), the public ECDH key used by the sender of the message.
 - #### **encEnvelope**: An encrypted envelope object (described below).
-- #### **Returns**:  The decoded ECDH public key as a Buffer.
+- #### **Returns**:  The deserialized (decoded) ECDH public key.
 
 The receiver of an encrypted envelope needs to infer which specific ECDH private key she should input to the decryption function (described later on in this section). To achieve this, the receiver is, typically, expected to first invoke this function and, subsequently, query w/e database she uses for key storage. Clearly, if the corresponding key cannot be located, the envelope should be discarded as the decryption function will throw an error.
 
 >### encrypt(receiverECDHPublicKey, message)
 - #### **Description:** The encryption function of this ECIES implementation.
-- #### **receiverECDHPublicKey**: The ECDH public key of the receiver as a Buffer.
+- #### **receiverECDHPublicKey**: The ECDH public key of the receiver.
 - #### **message**: The message as a Buffer that we want to encrypt and send across the wire.
 - #### **Returns**:  An encrypted envelope object (described below).
 
@@ -371,7 +403,7 @@ A succinct overview of the fields of an encrypted envelope object is as follows:
 - #### **Description:** The decryption function of this ECIES implementation.
 - #### **receiverECDHPrivateKey**:  The receiver's ECDH private key that corresponds to the one encoded in the to_ecdh field of the input encrypted envelope.
 - #### **encEnvelope**: An encrypted envelope object as is output by the `encrypt()` function.
-- #### **Returns**:  The decrypted message as a Buffer.
+- #### **Returns**:  The decrypted message as a `Buffer` type.
 
 This function should **always** be invoked in a `try-catch` block as it can throw exceptions for various reasons.
 
@@ -392,8 +424,8 @@ for `msgNo=500` and `msgSize=100`, which was executed on a fairly resource-const
 
 # To-Do List
 
-- [ ] There is a need for a unified key format. Some functions require PEM formatted keys, others use binary point representation (not DER). This is kinda messy.
-- [ ] An extension to the previous point is that this unified format should be extended to how keys are encoded in communicated messages and the envelope that is output by, e.g., the decryption function.
+- [x] There is a need for a unified key format. Some functions require PEM formatted keys, others use binary point representation (not DER). This is kinda messy.
+- [x] An extension to the previous point is that this unified format should be extended to how keys are encoded in communicated messages and the envelope that is output by, e.g., the decryption function.
 - [ ] We need a "proper" library for EC point operations. This will allow us to explore other options for ECIES implementations, such as ECDH co-factor. 
 - [x] At some point in time, the `pskcrypto` dependency should be removed to constitute the code provided here as self-contained as possible.
 - [ ] Explore and evaluate the degree in which operations can be parallelized.

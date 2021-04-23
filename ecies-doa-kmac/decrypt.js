@@ -15,8 +15,8 @@ function checkWrappedMessageMandatoryProperties(wrappedMessage) {
 module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
     common.checkEncryptedEnvelopeMandatoryProperties(encEnvelope)
 
-    const ephemeralPublicKey = Buffer.from(encEnvelope.r, mycrypto.encodingFormat)
-
+    const ephemeralPublicKey = mycrypto.PublicKeyDeserializer.deserializeECDHPublicKey(encEnvelope.r)
+    
     const ephemeralKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
     const sharedSecret = ephemeralKeyAgreement.computeSharedSecretFromKeyPair(receiverECDHPrivateKey, ephemeralPublicKey)
 
@@ -29,17 +29,18 @@ module.exports.decrypt = function (receiverECDHPrivateKey, encEnvelope) {
 
     const wrappedMessageObject = JSON.parse(mycrypto.symmetricDecrypt(symmetricEncryptionKey, ciphertext, iv).toString())
     checkWrappedMessageMandatoryProperties(wrappedMessageObject)
-    const senderPublicKey = Buffer.from(wrappedMessageObject.from_ecdh, mycrypto.encodingFormat)
+    const senderPublicKey = mycrypto.PublicKeyDeserializer.deserializeECDHPublicKey(wrappedMessageObject.from_ecdh)
 
     const senderKeyAgreement = new mycrypto.ECEphemeralKeyAgreement()
     const senderDerivedSharedSecret = senderKeyAgreement.computeSharedSecretFromKeyPair(receiverECDHPrivateKey, senderPublicKey)
+    // **TODO**: This does not seem correct, need to think about it.
     mycrypto.KMAC.verifyKMAC(tag, macKey,
         Buffer.concat([ciphertext, iv, senderDerivedSharedSecret],
             ciphertext.length + iv.length + senderDerivedSharedSecret.length)
     )
 
     return {
-        from_ecdh: Buffer.from(senderPublicKey, mycrypto.encodingFormat),
+        from_ecdh: senderPublicKey,
         message: Buffer.from(wrappedMessageObject.msg, mycrypto.encodingFormat)
     };
 }

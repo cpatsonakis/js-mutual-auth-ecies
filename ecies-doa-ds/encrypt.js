@@ -4,11 +4,9 @@ const mycrypto = require('../crypto')
 const common = require('../common');
 
 function senderMessageWrapAndSerialization(senderECSigVerPublicKey, message, signature) {
+    
     return JSON.stringify({
-        from_ecsig: senderECSigVerPublicKey.export({
-            type: 'spki',
-            format: 'pem'
-        }),
+        from_ecsig: mycrypto.PublicKeySerializer.serializeECSigVerPublicKey(senderECSigVerPublicKey),
         msg: message.toString(mycrypto.encodingFormat),
         sig: signature.toString(mycrypto.encodingFormat)
     });
